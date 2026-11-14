@@ -102,7 +102,7 @@ class NativeUiTest {
  @Test fun mobileMenuNavigatesToAllSections() {
   ready();state(fixture(Screen.CHAT))
   compose.onNodeWithContentDescription("منوی اصلی").performClick()
-  compose.onNodeWithText("اوراق قضایی").performScrollTo().performClick()
+  compose.onNodeWithText("اوراق قضایی").performClick()
   compose.onNodeWithText("اوراق قضایی شما").assertExists()
  }
  @Test fun composerPreservesDraftAcrossNavigation() {
@@ -361,6 +361,8 @@ data: {"answer":"متن پاسخ","conversation_id":42,"message_id":77,"subscrip
  }
  @Test fun guestSendOpensLoginWithoutSendingOrLosingDraft() {
   ready(login=false);val requests=recordRequests("""{"ok":true,"data":{}}""")
+  // دور ۳۲: مهمان دو پیام رایگان دارد؛ برای آزمودن پنجره ورود مهمان، سهمیه را تمام‌شده فرض می‌کنیم.
+  vm.setGuestQuotaForTest(0)
   compose.onNode(hasSetTextAction()).performTextInput("پرسش مهمان برای ادامه پس از ورود")
   compose.onNodeWithContentDescription("ارسال پیام").performClick()
   compose.onNodeWithText("ورود به میز کار حق‌سنج").assertExists()
@@ -368,12 +370,13 @@ data: {"answer":"متن پاسخ","conversation_id":42,"message_id":77,"subscrip
   screenshot("guest-send-login")
  }
  @Test fun guestCanReturnFromLoginAndKeepMessage() {
-  ready(login=false);compose.runOnIdle{vm.setDraft("پیش‌نویس محفوظ");vm.sendChat()}
+  ready(login=false);vm.setGuestQuotaForTest(0);compose.runOnIdle{vm.setDraft("پیش‌نویس محفوظ");vm.sendChat()}
   compose.onNodeWithText("بازگشت به چت").performClick()
   compose.onNodeWithText("پیش‌نویس محفوظ").assertExists();assertTrue(vm.state.value.entryComplete);assertFalse(vm.state.value.authenticated)
  }
  @Test fun guestLoginReturnsToChatButDoesNotAutoSend() {
   ready(login=false);val requests=recordRequests("""{"ok":true,"data":{"token":"local-fixture-token","user":{"full_name":"کاربر ساختگی"},"items":[]}}""")
+  vm.setGuestQuotaForTest(0)
   compose.runOnIdle{vm.setDraft("پیام آماده ارسال");vm.sendChat();vm.authenticate(false,mapOf("identifier" to "mock@example.com","password" to "mock-only-password"))}
   compose.waitUntil(10000){!vm.state.value.posting&&vm.state.value.authenticated}
   assertTrue(vm.state.value.entryComplete);assertEquals(Screen.CHAT,vm.state.value.screen);assertEquals("پیام آماده ارسال",vm.state.value.draft)
@@ -393,11 +396,12 @@ data: {"answer":"متن پاسخ","conversation_id":42,"message_id":77,"subscrip
  }
 
  @Test fun brandingGuestPromptExplainsThatDraftIsKept() {
-  ready(login=false);compose.runOnIdle{vm.setDraft("پیام محفوظ");vm.sendChat()}
+  ready(login=false);vm.setGuestQuotaForTest(0);compose.runOnIdle{vm.setDraft("پیام محفوظ");vm.sendChat()}
   compose.onNodeWithText("پیامت محفوظ است؛ برای دریافت پاسخ وارد شو.").assertExists()
  }
  @Test fun brandingSuccessfulGuestLoginShowsExplicitReadyMessageAction() {
   ready(login=false);recordRequests("""{"ok":true,"data":{"token":"local-brand-fixture","user":{"full_name":"ساختگی"},"items":[]}}""")
+  vm.setGuestQuotaForTest(0)
   compose.runOnIdle{vm.setDraft("متن آماده");vm.sendChat();vm.authenticate(false,mapOf("identifier" to "mock@example.com","password" to "mock-password"))}
   compose.waitUntil(10000){!vm.state.value.posting&&vm.state.value.authenticated}
   compose.onNodeWithText("ارسال پیام آماده‌شده").assertExists();assertTrue(vm.state.value.draftReady);assertTrue(vm.state.value.messages.isEmpty());screenshot("brand-draft-ready")

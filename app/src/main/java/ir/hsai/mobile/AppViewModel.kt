@@ -207,6 +207,7 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
   saved["draft"]=clamped.value
   change { it.copy(draft=clamped.value,draftReady=it.draftReady&&clamped.value.isNotBlank(),draftTruncated=clamped.truncated) }
  }
+ fun setGuestQuotaForTest(remaining:Int) { change { it.copy(guestQuota=JSONObject().put("enabled",true).put("limit",2).put("used",2-remaining).put("remaining",remaining)) } }
  fun setImage(data:String?) { change { it.copy(image=data,result=if(it.screen==Screen.SCANNER)null else it.result,fieldErrors=it.fieldErrors-"text") } }
  // FIX(bug): پیش‌نویس نیمه‌نوشتهٔ کاربر با کلیک روی کارت موضوع پاک نمی‌شود.
  fun chooseTopic(text:String) { setDraft(UiPresentation.topicDraft(state.value.draft,text)) }
