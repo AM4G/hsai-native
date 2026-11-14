@@ -1,0 +1,26 @@
+# حق‌سنج — Baseline Profile (دور ۳۲)
+#
+# این فایل همان قواعدی را می‌دهد که «مسیر شروع سرد» لازم دارد: صفحهٔ گفتگو، ViewModel،
+# لایهٔ شبکه و قالب‌بندی تاریخ شمسی. قواعد انسانی‌خوان‌اند و AGP هنگام build آن‌ها را
+# به پروفایل باینری تبدیل می‌کند؛ profileinstaller در اولین اجرا نصبشان می‌کند.
+HSPL1
+Lir/hsai/mobile/MainActivity;
+Lir/hsai/mobile/AppViewModel;
+Lir/hsai/mobile/ApiClient;
+Lir/hsai/mobile/ApiContract;
+Lir/hsai/mobile/SecureSession;
+Lir/hsai/mobile/GuestChat;
+Lir/hsai/mobile/UiPresentation;
+Lir/hsai/mobile/NativeAppKt;
+Lir/hsai/mobile/WorkspaceShellKt;
+Lir/hsai/mobile/ScreensKt;
+Lir/hsai/mobile/WorksPanelKt;
+Lir/hsai/mobile/ThemeKt;
+Lir/hsai/mobile/SiteDesignKt;
+Landroidx/compose/runtime/Composer;
+Landroidx/compose/runtime/Recomposer;
+Landroidx/compose/material3/MaterialTheme;
+Lokhttp3/OkHttpClient;
+Lokhttp3/Request;
+Lorg/json/JSONObject;
+Landroid/icu/text/DateFormat;

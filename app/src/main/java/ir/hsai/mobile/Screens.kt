@@ -261,6 +261,16 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
  Box(Modifier.align(Alignment.BottomEnd).padding(12.dp)){JumpToLatestFab(showJump){scope.launch{withTimeoutOrNull(2000){list.animateScrollToItem((list.layoutInfo.totalItemsCount-1).coerceAtLeast(0))}}}}
  }
  Surface(modifier=Modifier.widthIn(max=1000.dp).fillMaxWidth(),color=MaterialTheme.colorScheme.background) { Column(Modifier.padding(horizontal=13.dp,vertical=9.dp)) {
+  // دور ۳۲: مهمان باید بداند چند پیام رایگان دارد، پیش از آنکه سهمیه تمام شود.
+  if(!s.authenticated&&s.guestQuota.length()>0) {
+   val remaining=s.guestQuota.optInt("remaining",0)
+   Surface(color=if(remaining>0)MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer,shape=RoundedCornerShape(12.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=6.dp)) {
+     Text(GuestChat.quotaLabel(s.guestQuota),style=MaterialTheme.typography.labelMedium)
+     if(remaining<=0)TextButton(onClick={vm.loginRequired(Screen.CHAT)},modifier=Modifier.fillMaxWidth()){Text("ورود برای ادامهٔ گفتگو")}
+    }
+   }
+  }
   if(s.image!=null)ImageAttachment(s.image,onEditImage,{vm.setImage(null)})
   if(s.draftReady)Surface(color=MaterialTheme.colorScheme.secondaryContainer,shape=RoundedCornerShape(12.dp)) {
    Column(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=6.dp)) {
@@ -283,7 +293,8 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
    OutlinedTextField(value=s.draft,onValueChange=vm::setDraft,placeholder={Text("ماجرا را ساده بنویسید…",style=MaterialTheme.typography.bodySmall)},modifier=Modifier.fillMaxWidth(),maxLines=5,shape=SiteShape.Xxl,colors=OutlinedTextFieldDefaults.colors(unfocusedBorderColor=if(s.dark)Color(0x1AFFFFFF) else Palette.Slate300,focusedBorderColor=Palette.Brass400,unfocusedContainerColor=if(s.dark)Color(0xFF10263A) else Color.White,focusedContainerColor=if(s.dark)Color(0xFF10263A) else Color.White,cursorColor=Palette.Brass500,unfocusedTextColor=Soft.ink(),focusedTextColor=Soft.ink()))
    if(s.draftTruncated)Text("حداکثر "+fa(UiPresentation.DRAFT_LIMIT)+" نویسه پذیرفته می‌شود؛ ادامهٔ متن ذخیره نشد.",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.error)
   }
-  FilledIconButton(onClick={vm.sendChat()},enabled=!s.posting&&(s.draft.isNotBlank()||s.image!=null),modifier=Modifier.size(46.dp),colors=IconButtonDefaults.filledIconButtonColors(containerColor=SiteNavy,contentColor=SiteGold,disabledContainerColor=MaterialTheme.colorScheme.onSurface.copy(alpha=.06f),disabledContentColor=MaterialTheme.colorScheme.onSurface.copy(alpha=.38f))){Icon(NativeIcons.Send,"ارسال پیام")}
+  // لایهٔ ۲۰۲۶: دکمهٔ ارسال برنزی با متن سرمه‌ای (مثل `.hs-composer__send` در وب)
+  FilledIconButton(onClick={vm.sendChat()},enabled=!s.posting&&(s.draft.isNotBlank()||s.image!=null),modifier=Modifier.size(46.dp),colors=IconButtonDefaults.filledIconButtonColors(containerColor=Palette.Brass400,contentColor=Palette.Navy950,disabledContainerColor=MaterialTheme.colorScheme.onSurface.copy(alpha=.06f),disabledContentColor=MaterialTheme.colorScheme.onSurface.copy(alpha=.38f))){Icon(NativeIcons.Send,"ارسال پیام")}
   }
   }
   if(s.posting&&s.stage.isNotBlank())TextButton(onClick=vm::stopChat){Text("توقف دریافت پاسخ")}
@@ -354,6 +365,11 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
    }
   }
   TextButton(onClick={moreTopics=!moreTopics}){Text(if(moreTopics)"موضوع‌های کمتر"else "موضوع‌های بیشتر")}
+  // دور ۳۲: مهلت‌ها، قوانین و محاسبه‌گرها از ناوبری حذف شدند، ولی باید یک ضربه دور باشند.
+  TextButton(onClick={vm.openWorks()},modifier=Modifier.semantics{contentDescription="کارهای دیگر: مهلت‌ها، بانک قوانین، محاسبه‌گرها"}) {
+   Icon(NativeIcons.Briefcase,null,Modifier.size(16.dp));Spacer(Modifier.width(6.dp))
+   Text("کارهای دیگر: مهلت‌ها، قوانین، محاسبه‌گر")
+  }
  }
 }
 @Composable fun MessageCard(m:ChatMessage,busy:Boolean,vm:AppViewModel,isLatest:Boolean=false) {
@@ -420,8 +436,9 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
  }
  if(user)Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.TopStart) {
   // .soft-bubble-user سایت: گرادیان navy (#1b3852 → #0c1f2e) و گوشهٔ کوچک سمت پایین‌شروع
-  Surface(Modifier.fillMaxWidth(.9f),shape=SiteShape.bubbleUser(),contentColor=Palette.Slate50,border=BorderStroke(1.dp,Color(0x1AFFFFFF)),shadowElevation=6.dp) {
-   Box(Modifier.background(Brush.verticalGradient(listOf(Color(0xFF1B3852),Color(0xFF0C1F2E))))) {
+  // لایهٔ ۲۰۲۶: گرادیان سه‌ایستگاهی #14384B → #0B2231 → #0A1B26 و حاشیهٔ برنزی ملایم.
+  Surface(Modifier.fillMaxWidth(.9f),shape=SiteShape.bubbleUser(),contentColor=Palette.Slate50,border=BorderStroke(1.dp,Palette.Brass400.copy(alpha=.34f)),shadowElevation=8.dp) {
+   Box(Modifier.background(Brush.linearGradient(listOf(Color(0xFF14384B),Color(0xFF0B2231),Color(0xFF0A1B26))))) {
     Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp),content=content)
    }
   }
@@ -643,6 +660,13 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
   if(s.authenticated)SoftButton(onClick=vm::paymentHistory,onCard=true){Icon(NativeIcons.History,null,Modifier.size(16.dp));Text("تاریخچهٔ پرداخت‌های من")}
   if(vm.pendingPayment)SoftButton(onClick={vm.verifyPayment()},enabled=!s.posting,onCard=true){Icon(NativeIcons.CheckCircle,null,Modifier.size(16.dp));Text("استعلام آخرین پرداخت")}
  }
+ // دور ۳۲: متن حقوقی پرداخت کنار دکمه‌ها، نه در صفحه‌ای دیگر. کاربر باید پیش از
+ // پرداخت بداند تمدید خودکار نیست و مسیر بازگشت وجه چیست. کانال پرداخت هم از یک‌جا می‌آید.
+ val payContext=androidx.compose.ui.platform.LocalContext.current
+ GlassCard(spacing=8) {
+  Text(PaymentChannels.explain(payContext),style=MaterialTheme.typography.bodySmall,fontWeight=FontWeight.Bold)
+  Text(PaymentChannels.refundNotice(),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+ }
  // در چیدمان راست‌به‌چپ، اولین کارت سمت راست دیده می‌شود؛ پس طرح «پیشنهاد ویژه» اول می‌آید.
  val featuredPlan:(JSONObject)->Boolean={ it.optBoolean("is_popular")||it.optInt("is_popular")==1 }
  val plans=s.items.filter{it.str("billing_cycle")==s.planCycle}.sortedByDescending(featuredPlan);Loading(s,SkeletonKind.CARDS);ErrorNotice(s,{vm.refresh()});if(!s.loading&&s.error.isBlank()&&plans.isEmpty())EmptyState("طرحی در این دوره موجود نیست","دوره دیگری را انتخاب کنید یا بعداً دوباره بررسی کنید.",NativeIcons.Crown);AdaptiveCards(plans,featured=featuredPlan) { p->if(p.str("badge_text").isNotBlank())Text(p.str("badge_text"),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.primary);Text(p.str("name"),style=MaterialTheme.typography.titleMedium);Text(p.str("description"),style=MaterialTheme.typography.bodySmall);Text("${fa(p.optLong("price_toman"))} تومان",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold);Text("${fa(p.optInt("duration_days"))} روز اعتبار",style=MaterialTheme.typography.bodySmall);val features=p.optJSONArray("features")?:runCatching{JSONArray(p.str("features_json","[]"))}.getOrDefault(JSONArray());(0 until features.length()).forEach { i->Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Icon(NativeIcons.Check,null,Modifier.size(18.dp),tint=MaterialTheme.colorScheme.primary);Text(features.optString(i),Modifier.weight(1f))}};Action("انتخاب این اشتراک",s.posting){vm.selectPlan(p)}}
@@ -744,6 +768,8 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
   Column(Modifier.verticalScroll(rememberScrollState()).padding(22.dp),verticalArrangement=Arrangement.spacedBy(15.dp)) {
   when(d.kind){
    "historyPreview"->{HistoryDetail(d,s,vm,Modifier.fillMaxWidth().height(440.dp))}
+   // دور ۳۲: پنجرهٔ «کارها» جای سه صفحهٔ حذف‌شده از ناوبری (مهلت‌ها، قوانین، محاسبه‌گرها).
+   "works"->{WorksPanel(s,vm)}
    "delete"->{Text("این مورد حذف می‌شود. این عمل قابل بازگشت نیست.");DangerAction("تأیید حذف",s.posting){vm.delete(d.data.str("kind"),d.data.optLong("id"))}}
    "retryChat"->{
     var checked by remember{mutableStateOf(false)}

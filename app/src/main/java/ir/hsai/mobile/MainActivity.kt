@@ -96,9 +96,22 @@ class MainActivity:ComponentActivity() {
   if(restored!=null&&!cameraOwner.isNullOrBlank()){cameraFile=restored;cameraUri=FileProvider.getUriForFile(this,"$packageName.files",restored)}
   enableEdgeToEdge()
   network.registerDefaultNetworkCallback(networkCallback)
+  // دور ۳۲: (۱) گزارش خرابی خودمان — استک روی گوشی می‌ماند و با اولین اتصال فرستاده می‌شود؛
+  // (۲) همگام‌سازی دوره‌ای مهلت‌ها بدون FCM، تا مهلتی که در سایت ثبت شده هم روی گوشی
+  // یادآور ۷/۳/۱ روز بگیرد. هر دو بی‌صدا و تکرارپذیرند.
+  runCatching { CrashReporter(applicationContext).install() }
+  runCatching { DeadlineSync.init(applicationContext) }
   setContent {
    // وضعیت پیش از استفاده در نوار وضعیت خوانده می‌شود (ترتیب اعلان مهم است).
    val state by vm.state.collectAsState()
+   // دور ۳۲: قفل برنامه با قفل خود دستگاه. تا وقتی تأیید هویت کامل نشود هیچ صفحه‌ای
+   // بارگذاری نمی‌شود؛ صفحهٔ قفل فقط یک دکمه دارد.
+   val lock=remember{AppLock(applicationContext)}
+   var locked by remember{mutableStateOf(lock.locked())}
+   LaunchedEffect(Unit){ if(lock.locked())lock.prompt(this@MainActivity){ok->locked=!ok} }
+   if(locked) {
+    HsaiTheme(state.dark){LockScreen(lock.status()){lock.prompt(this@MainActivity){ok->locked=!ok}}}
+   } else {
    Box(Modifier.fillMaxSize()) {
     NativeApp(vm,::gallery,::camera,::dictate,{editing=true},snacks)
     Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
@@ -106,7 +119,12 @@ class MainActivity:ComponentActivity() {
      .background(if(state.entryComplete)Soft.bg() else SiteNavy))
    }
    SideEffect { androidx.core.view.WindowCompat.getInsetsController(window,window.decorView).apply { isAppearanceLightStatusBars=state.entryComplete&&!state.dark;isAppearanceLightNavigationBars=state.entryComplete&&!state.dark } }
+   // دور ۳۲: محتوای پرونده (سند و عکس) در «آخرین برنامه‌های باز»، اسکرین‌شات و ضبط صفحه
+   // نمی‌ماند؛ پرچم فقط روی صفحه‌هایی روشن است که متن واقعی پرونده دیده می‌شود.
+   val secureNow=state.entryComplete&&(state.screen==Screen.DOCUMENTS||state.screen==Screen.SCANNER||state.image!=null||state.dialog?.kind in setOf("documentView","documentEdit","historyPreview")||state.pane?.kind in setOf("documentView","documentEdit","historyPreview"))
+   SideEffect { SecureScreens.set(this@MainActivity,secureNow) }
    if(editing&&state.entryComplete&&state.image!=null)HsaiTheme(state.dark){RedactionDialog(state.image!!,{editing=false}){data->vm.setImage(data);editing=false;vm.notice("نسخه پوشانده‌شده انتخاب شد؛ پیش از ارسال بازبینی کنید.")}}
+   }
   }
   lifecycleScope.launch { repeatOnLifecycle(Lifecycle.State.STARTED){vm.effects.collect{effect->when(effect){
    is AppEffect.Toast->launch{snacks.showSnackbar(effect.text)}
@@ -186,16 +204,42 @@ class MainActivity:ComponentActivity() {
   super.onSaveInstanceState(outState)
  }
 
- private fun schedule(r:AppEffect.Remind){runCatching{DeadlineReminder.schedule(this,r.id,r.title,r.date,r.owner)}.onSuccess{vm.notice("یادآور یک روز قبل ثبت شد؛ ممکن است به علت محدودیت باتری با تأخیر اجرا شود.")}.onFailure{vm.notice(it.message?:"ثبت یادآور ناموفق بود.")}}
+ /**
+  * یادآور مهلت در سه گام (۷/۳/۱ روز پیش). گام‌هایی که تاریخشان گذشته باشد بی‌صدا رد
+  * می‌شوند؛ پیام کاربر می‌گوید چند گام ثبت شد تا «ثبت شد» گمراه‌کننده نباشد.
+  */
+ private fun schedule(r:AppEffect.Remind){
+  runCatching{DeadlineMilestones.schedule(this,r.id,r.title,r.date,r.owner)}.onSuccess { steps->
+   vm.notice(if(steps>0)"یادآور "+fa(steps)+" گام (۷، ۳ و ۱ روز پیش) ثبت شد؛ ممکن است به علت محدودیت باتری با تأخیر اجرا شود."else "تاریخ مهلت نزدیک است؛ گامی برای یادآوری نمانده — فایل تقویم بگیرید یا تاریخ را بررسی کنید.")
+  }.onFailure{vm.notice(it.message?:"ثبت یادآور ناموفق بود.")}
+ }
+ /**
+  * یک درگاه برای همهٔ پیوندها: `hsai://...` و App Linkهای `https://hsai.ir/...`.
+  * [DeepLinks.kind] هر چیز ناشناخته یا با میزبان دیگر را رد می‌کند؛ هیچ پارامتری از
+  * پیوند دستور اجرا نمی‌شود — نهایتِ کارش «بررسی وضعیت پرداخت» است که سرور تأیید می‌کند.
+  */
  private fun handleIntent(i:Intent?){
-  if(i?.action=="ir.hsai.mobile.OPEN_DEADLINES")lifecycleScope.launch {
+  val kind=DeepLinks.kind(i)
+  if(kind==DeepLinks.Kind.DEADLINES)lifecycleScope.launch {
    vm.state.filter{it.initialized}.first()
-   if(vm.state.value.authenticated&&vm.state.value.entryComplete)vm.navigate(Screen.DEADLINES)else vm.loginRequired(Screen.DEADLINES)
+   // صفحهٔ «مهلت‌ها» دیگر مستقل نیست؛ همان فهرست در پنجرهٔ «کارها» باز می‌شود.
+   if(vm.state.value.authenticated&&vm.state.value.entryComplete){vm.openWorks();vm.loadDeadlines()}else vm.loginRequired(Screen.ACCOUNT)
   }
-  if(i?.data?.scheme=="hsai"&&i.data?.host=="payment")lifecycleScope.launch{vm.state.filter{it.initialized}.first();if(vm.state.value.authenticated&&vm.state.value.entryComplete)vm.verifyPayment()else vm.loginRequired(Screen.PLANS)}
+  if(kind==DeepLinks.Kind.PAYMENT){awaitingPayment=true;lifecycleScope.launch{vm.state.filter{it.initialized}.first();if(vm.state.value.authenticated&&vm.state.value.entryComplete)vm.verifyPayment()else vm.loginRequired(Screen.PLANS)}}
   // FIX(app-parity): بازگشت از «ورود با گوگل». برگهٔ دست‌دهی فقط با nonce همین دستگاه نقد می‌شود.
-  if(i?.data?.scheme=="hsai"&&i.data?.host=="auth"){val link=i.dataString.orEmpty();lifecycleScope.launch{vm.state.filter{it.initialized}.first();vm.completeGoogleSignIn(link)}}}
+  if(kind==DeepLinks.Kind.AUTH){val link=DeepLinks.normalize(i?.data)?.toString()?:i?.dataString.orEmpty();lifecycleScope.launch{vm.state.filter{it.initialized}.first();vm.completeGoogleSignIn(link)}}}
  override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);handleIntent(intent)}
  override fun onResume(){super.onResume();vm.updateSessionClock();if(awaitingPayment){awaitingPayment=false;if(vm.state.value.entryComplete)vm.verifyPayment()else vm.loginRequired(Screen.PLANS)}}
+ /** هر بازگشت از پس‌زمینه دوباره قفل می‌شود؛ فقط انتخاب تصویر/سند (فرایند خودمان) مستثنی است. */
+ override fun onStop(){
+  if(!isChangingConfigurations&&!busyWithOwnPicker())runCatching{AppLock(applicationContext).markLocked()}
+  super.onStop()
+ }
+ private fun busyWithOwnPicker():Boolean = pickerOwner!=null||cameraOwner!=null||editing||pendingDocument!=null
+ override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) {
+  // مسیر پشتیبان تأیید هویت (اندروید ۹ و پایین‌تر) با همین کد برمی‌گردد.
+  if(AppLock(applicationContext).onActivityResult(requestCode,resultCode))return
+  @Suppress("DEPRECATION") super.onActivityResult(requestCode,resultCode,data)
+ }
  override fun onDestroy(){runCatching{network.unregisterNetworkCallback(networkCallback)};Speaker.shutdown();super.onDestroy()}
 }

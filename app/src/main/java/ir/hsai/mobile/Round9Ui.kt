@@ -209,6 +209,25 @@ private fun persianMonthDays(offset:Int):List<Pair<Int,String>> {
    Text("متن پیام‌ها، تصاویر و پیش‌نویس‌ها در این کش ذخیره نمی‌شوند؛ پیش‌نویس گفتگو فقط تا پایان فرایند اپ می‌ماند.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
    SoftButton(onClick=vm::clearLocalCache,onCard=true){Icon(NativeIcons.Close,null,Modifier.size(16.dp));Text("پاک‌کردن داده‌های ذخیره‌شده")}
   }
+  // دور ۳۲: قفل برنامه با قفل خود دستگاه — نشست در Keystore است، ولی گوشیِ باز هم باز است.
+  GlassCard {
+   Text("قفل برنامه",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+   val context=androidx.compose.ui.platform.LocalContext.current
+   val lock=remember(context){AppLock(context)}
+   Text(lock.status(),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+    Text("پرسیدن اثر انگشت یا رمز صفحه در هر بازگشت",Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium)
+    Switch(checked=s.appLock,onCheckedChange={vm.setAppLock(it)},modifier=Modifier.semantics{contentDescription="قفل برنامه با اثر انگشت یا رمز صفحه"})
+   }
+   Text("این تنظیم فقط روی همین گوشی ذخیره می‌شود و به سرور نمی‌رود. اگر قفل صفحهٔ گوشی را بردارید، اپ دیگر قفل نمی‌شود تا راه ورود بسته نشود.",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  }
+  // دور ۳۲: نسخه و گزارش خرابی — کاربر باید بداند کدام نسخه را دارد و چه چیزی فرستاده می‌شود.
+  GlassCard {
+   Text("نسخهٔ برنامه",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+   val context=androidx.compose.ui.platform.LocalContext.current
+   Text("نسخه "+AppInfo.VERSION_NAME+" (ساخت "+fa(AppInfo.VERSION_CODE)+") — "+(if(PaymentChannels.installedFromPlay(context))"نصب از فروشگاه برنامه"else "نصب مستقیم"),style=MaterialTheme.typography.bodySmall)
+   Text("اگر برنامه ناگهان بسته شود، یک گزارش فنی (نوع خطا، نسخهٔ اپ، مدل گوشی) برای اصلاح فرستاده می‌شود؛ هیچ پیام گفتگو، تصویر، ایمیل یا شماره‌ای در آن گزارش نیست.",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  }
   GlassCard {
    Text("پیوندها و پشتیبانی",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
    FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)) {

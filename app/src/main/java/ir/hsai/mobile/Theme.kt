@@ -87,9 +87,12 @@ object SiteShape {
  val Xxxl = RoundedCornerShape(24.dp) // rounded-3xl سایت؛ tokens.py هر دو را می‌سنجد
  val Card = RoundedCornerShape(24.dp)
  val Chip = RoundedCornerShape(50)
- /** حباب پیام: 1.4rem و گوشهٔ 0.55rem در سمت شروع/پایان گفتگو */
- fun bubbleUser()=RoundedCornerShape(topStart=22.dp,topEnd=22.dp,bottomStart=9.dp,bottomEnd=22.dp)
- fun bubbleAi()=RoundedCornerShape(topStart=22.dp,topEnd=22.dp,bottomStart=22.dp,bottomEnd=9.dp)
+ /**
+  * حباب پیام — هم‌تراز با لایهٔ ۲۰۲۶ وب (`src/styles/hsai-2026.css`):
+  * کاربر: ۲۴dp با گوشهٔ ۸dp در پایینِ سمت شروع؛ دستیار: کارت کامل‌گرد ۲۴dp.
+  */
+ fun bubbleUser()=RoundedCornerShape(topStart=24.dp,topEnd=24.dp,bottomStart=24.dp,bottomEnd=8.dp)
+ fun bubbleAi()=RoundedCornerShape(24.dp)
 }
 
 /**

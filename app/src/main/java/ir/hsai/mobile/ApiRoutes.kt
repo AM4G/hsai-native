@@ -1,6 +1,8 @@
 package ir.hsai.mobile
 
 object ApiRoutes {
+ /** مسیرهایی که بدون نشست هم مجازند (مهمان/گزارش خرابی)؛ برای نمایش و آزمون. */
+ fun isPublic(path:String):Boolean = path.substringBefore("?") in setOf("/public/chat","/public/quota","/app/crash")
  fun allowed(path:String, method:String):Boolean {
  val p=path.substringBefore("?")
  if (".." in p || !p.startsWith("/") || Regex("(?i)%2e|%2f|%5c|%25").containsMatchIn(p)) return false
@@ -58,6 +60,13 @@ object ApiRoutes {
  Regex("/auth/google/link/send-otp").matches(p) -> method in setOf("POST")
  Regex("/auth/identities").matches(p) -> method in setOf("GET")
  Regex("/auth/identities/[a-z]+/unlink").matches(p) -> method in setOf("POST")
+ // ── دور ۳۲: مسیرهای بی‌نشست (مهمان) و گزارش خرابی خودمان ──
+ // `/public/chat` همان مسیر وب‌سایت است که دو پیام رایگان مهمان را می‌دهد؛ بدون توکن.
+ Regex("/public/chat").matches(p) -> method in setOf("POST")
+ // سهمیهٔ مهمان (GET) — همان چیزی که نوار «۲ پیام رایگان» از آن پر می‌شود.
+ Regex("/public/quota").matches(p) -> method in setOf("GET")
+ // گزارش خراش اپ: بدون نشست، فقط بدنهٔ کوچک و بی‌داده‌شخصی.
+ Regex("/app/crash").matches(p) -> method in setOf("POST")
 else -> false
 }
 }

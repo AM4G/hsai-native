@@ -49,6 +49,11 @@ class ApiClient(
         if (authenticated && token.isBlank()) throw ApiException("برای ادامه وارد حساب شوید.", 401, "LOGIN_REQUIRED")
         val builder = Request.Builder().url(base.trimEnd('/') + path)
             .header("Accept", "application/json")
+            // هدر نسخهٔ اپ: بدون آن، در گزارش‌های سرور «اapp» و «مرورگر» از هم تفکیک نمی‌شدند
+            // و خطای مخصوص یک نسخهٔ قدیمی قابل ردیابی نبود. مقدار از BuildConfig می‌آید.
+            .header("X-Hsai-App", AppInfo.HEADER)
+            .header("X-Hsai-App-Build", AppInfo.VERSION_CODE.toString())
+            .header("User-Agent", AppInfo.USER_AGENT)
         if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
         val requestBody = if (method in listOf("POST", "PATCH", "PUT"))
             (body ?: JSONObject()).toString().toRequestBody("application/json; charset=utf-8".toMediaType()) else null
@@ -70,6 +75,46 @@ class ApiClient(
      * بازتولید پاسخ (دور ۱۴/۱۵) — از دور ۱۵ روی API رسمی v1
      * (`POST /api/v1/messages/:id/regenerate`) انجام می‌شود؛ همان منطق مشترک وب.
      */
+    /**
+     * گفتگوی مهمان — دو پیام رایگان بدون حساب.
+     *
+     * مسیر عمداً `/public/chat` است، همان چیزی که وب‌سایت برای کاربر بی‌حساب صدا می‌زند؛
+     * نه `/chat` که بدون اشتراک `NO_SUBSCRIPTION` می‌دهد. درخواست بی‌توکن است، و برای
+     * همین دستگاه یک شناسهٔ پایدار می‌فرستد تا سهمیه با هر اجرای اپ ریست نشود.
+     */
+    suspend fun guestChat(deviceId:String, message:String, history:org.json.JSONArray):JSONObject {
+        require(deviceId.isNotBlank()){"شناسهٔ دستگاه ساخته نشد؛ دوباره تلاش کنید."}
+        val body=JSONObject().put("device_id",deviceId).put("message",message).put("history",history)
+        return rawRequest("/public/chat","POST",body)
+    }
+
+    /**
+     * سهمیهٔ مهمان برای همین دستگاه. مسیر عمومی است و پاسخش پاکت `{ok,data}` ندارد.
+     * اگر سرویس در دسترس نباشد، نوار سهمیه خالی می‌ماند و ارسال همچنان کار می‌کند؛
+     * هیچ‌جا به‌خاطر این درخواست، ارسال پیام متوقف نمی‌شود.
+     */
+    suspend fun guestQuota(deviceId:String):JSONObject {
+        require(deviceId.isNotBlank()){"شناسهٔ دستگاه ساخته نشد؛ دوباره تلاش کنید."}
+        return rawRequest("/public/quota?device_id="+java.net.URLEncoder.encode(deviceId,"UTF-8"),"GET")
+    }
+
+    /**
+     * پاسخ مسیرهای عمومی، پاکت `{ok,data}` ندارد (بدنه مستقیم است و خطا در کلید
+     * `error`). این متد همان قرارداد را می‌خواند و برای ۲xx بدنه را برمی‌گرداند.
+     */
+    suspend fun rawRequest(path:String,method:String="GET",body:JSONObject?=null,authenticated:Boolean=false):JSONObject {
+        val call=http.newCall(build(path,method,body,authenticated))
+        return call.consume { response->
+            val raw=response.body?.byteStream()?.use{String(TransportLimits.read(it,TransportLimits.JSON_BYTES),Charsets.UTF_8).removePrefix("\uFEFF")}.orEmpty()
+            val parsed=try{JSONObject(raw)}catch(_:Exception){JSONObject()}
+            if(!response.isSuccessful) {
+                val message=parsed.optString("error").takeIf{it.isNotBlank()}?:"درخواست انجام نشد (${response.code})."
+                throw ApiException(message,response.code,parsed.optString("code",if(parsed.optBoolean("needs_account",false))"NEEDS_ACCOUNT" else ""))
+            }
+            parsed
+        }
+    }
+
     suspend fun regenerate(messageId:Long):JSONObject {
         val d=request("/messages/$messageId/regenerate","POST",JSONObject())
         return d.optJSONObject("message")?:throw ApiException("پاسخ تازه‌ای دریافت نشد.",0,"INVALID_RESPONSE")

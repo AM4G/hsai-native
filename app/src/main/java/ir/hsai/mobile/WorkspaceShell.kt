@@ -12,9 +12,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -71,6 +72,8 @@ fun workspaceLayout(widthDp:Float):WorkspaceLayout = when {
           // رنگ هم عیناً از سایت: bg-slate-100 dark:bg-white/10 (نه Soft.well).
           navigationIcon={if(layout==WorkspaceLayout.COMPACT)IconButton(onClick={scope.launch{drawer.open()}},modifier=Modifier.padding(start=6.dp).size(44.dp).background(if(s.dark)Color(0x1AFFFFFF) else Palette.Slate100,SiteShape.Xl)){Icon(NativeIcons.Menu,"منوی اصلی",Modifier.size(20.dp))}},
           actions={
+           // دور ۳۲: درِ «کارها» در نوار بالا؛ صفحهٔ مهلت‌ها/قوانین/محاسبه‌گر از همین‌جا باز می‌شود.
+           IconButton(onClick={vm.openWorks()},modifier=Modifier.size(44.dp).background(if(s.dark)Color(0x1AFFFFFF) else Palette.Slate100,SiteShape.Xl).semantics{contentDescription="کارهای دیگر"}){Icon(NativeIcons.Briefcase,null,Modifier.size(20.dp))}
            IconButton(onClick={vm.navigate(Screen.ACCOUNT)},modifier=Modifier.size(44.dp).background(if(s.dark)Color(0x1AFFFFFF) else Palette.Slate100,SiteShape.Xl)){Icon(NativeIcons.PersonOutline,if(s.authenticated)"حساب کاربری"else "ورود یا عضویت",Modifier.size(20.dp))}
            // ThemeToggle سایت: border-slate-200 bg-white text-slate-700 / dark: border-white/15 bg-white/10،
            // آیکون Moon در روشن (navy-700) و Sun در تیره (brass-300).
@@ -83,7 +86,8 @@ fun workspaceLayout(widthDp:Float):WorkspaceLayout = when {
          if(s.reminderNotice)Surface(color=MaterialTheme.colorScheme.secondaryContainer) {
           Column(Modifier.fillMaxWidth().padding(12.dp)) {
            Text("تنظیم یادآورها به‌روز شد؛ یادآورهای قبلی را بررسی و در صورت نیاز دوباره ثبت کنید.",style=MaterialTheme.typography.bodySmall)
-           Row {TextButton(onClick={vm.navigate(Screen.DEADLINES)}){Text("بررسی مهلت‌ها")};TextButton(onClick=vm::dismissReminderNotice){Text("متوجه شدم")}}
+           // دور ۳۲: صفحهٔ «مهلت‌ها» از ناوبری حذف شد؛ فهرست همان‌جا در پنجرهٔ «کارها» باز می‌شود.
+           Row {TextButton(onClick={vm.openWorks();vm.loadDeadlines()}){Text("بررسی مهلت‌ها")};TextButton(onClick=vm::dismissReminderNotice){Text("متوجه شدم")}}
           }
          }
          if(!s.online)Surface(color=MaterialTheme.colorScheme.errorContainer){Column(Modifier.fillMaxWidth().padding(12.dp)){Text("اتصال برقرار نشد؛ اینترنت را بررسی و دوباره تلاش کنید.");TextButton(onClick={vm.checkConnection()},enabled=!s.checkingConnection){Text(if(s.checkingConnection)"در حال بررسی اتصال…"else "بررسی اتصال")}}}
@@ -91,6 +95,8 @@ fun workspaceLayout(widthDp:Float):WorkspaceLayout = when {
          SessionBanner(s,vm)
          StaleBanner(s,vm)
          if(s.posting&&s.screen!=Screen.CHAT)LinearProgressIndicator(Modifier.fillMaxWidth())
+         // صفحه‌های LAWS/CALCULATORS/DEADLINES دیگر از ناوبری و منو قابل دسترسی نیستند و
+         // فقط برای آزمون‌های موجود و بازگشت‌های قدیمی (پیوندهای ذخیره‌شده) باقی مانده‌اند.
          when(s.screen) {
           Screen.CHAT->ChatScreen(s,vm,onImage,onCamera,onDictate,onEditImage)
           Screen.ACCOUNT->AccountScreen(s,vm)
@@ -125,9 +131,14 @@ fun workspaceLayout(widthDp:Float):WorkspaceLayout = when {
    IconButton(onClick=vm::newChat){Icon(NativeIcons.Add,"گفتگوی جدید",tint=SiteGold)}
    // FIX(nav): حساب کاربری در ریل کنارِ آیکونِ پروفایلِ نوار بالا تکرار می‌شد و دو دکمهٔ هم‌نام
    // یک مقصد واحد داشتند؛ نسخهٔ ریل فقط مقصدهای انحصاری خودش را نشان می‌دهد.
-   Screen.entries.filterNot{it==Screen.ACCOUNT}.forEach { screen->Surface(onClick={select(screen)},shape=SiteShape.Xl,color=if(s.screen==screen)SiteGold.copy(alpha=.18f)else Color.Transparent) {
-    Icon(screen.symbol(),screen.title,Modifier.padding(16.dp).size(22.dp),tint=if(s.screen==screen)SiteGold else Palette.Slate300)
+   // دور ۳۰: «بانک قوانین» و «محاسبه‌گرها» و «مهلت‌های قانونی» از محصول حذف شدند؛ در ناوبری هم نمی‌آیند.
+   // دور ۳۲: ریل دقیقاً پنج مقصد اصلی را دارد (قبلاً همهٔ صفحه‌ها منهای سه مورد بود).
+   Destination.entries.forEach { destination->Surface(onClick={select(destination.screen)},shape=SiteShape.Xl,color=if(s.screen==destination.screen)SiteGold.copy(alpha=.18f)else Color.Transparent) {
+    Icon(destination.symbol(),destination.label,Modifier.padding(16.dp).size(22.dp),tint=if(s.screen==destination.screen)SiteGold else Palette.Slate300)
    }}
+   Surface(onClick={vm.openWorks()},shape=SiteShape.Xl,color=Color.Transparent) {
+    Icon(NativeIcons.Briefcase,"کارهای دیگر",Modifier.padding(16.dp).size(22.dp),tint=Palette.Slate300)
+   }
   } else Column(Modifier.statusBarsPadding().navigationBarsPadding()) {
    Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
@@ -135,14 +146,18 @@ fun workspaceLayout(widthDp:Float):WorkspaceLayout = when {
     }
     Button(onClick={vm.newChat();select(Screen.CHAT)},modifier=Modifier.fillMaxWidth(),shape=SiteShape.Xl,colors=ButtonDefaults.buttonColors(containerColor=SiteGold,contentColor=SiteNavy)) {Icon(NativeIcons.Add,null,Modifier.size(18.dp));Spacer(Modifier.width(6.dp));Text("گفتگوی جدید",fontWeight=FontWeight.Bold)}
     Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-     listOf(Screen.LAWS,Screen.CALCULATORS).forEach { screen->SidebarLink(screen.title,screen.symbol(),Modifier.weight(1f)){select(screen)} }
+     SidebarLink("گفتگوی حقوقی",NativeIcons.ChatBubbleOutline,Modifier.weight(1f)){select(Screen.CHAT)}
+     SidebarLink("اوراق قضایی",NativeIcons.FileSignature,Modifier.weight(1f)){select(Screen.DOCUMENTS)}
     }
    }
    HorizontalDivider(color=Color.White.copy(alpha=.1f))
    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-    val tools=listOf(Screen.DOCUMENTS,Screen.SCANNER,Screen.DEADLINES,Screen.TICKETS)
-    tools.chunked(2).forEach { row->Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){row.forEach { screen->SidebarLink(screen.title,screen.symbol(),Modifier.weight(1f)){select(screen)} }} }
-    SidebarLink("گفتگوهای من",NativeIcons.History,Modifier.fillMaxWidth()){select(Screen.HISTORY)}
+    // دور ۳۲: پنج مقصد اصلی، بدون صفحهٔ اضافی. «کارها» درِ بقیهٔ نیازهاست.
+    Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+     SidebarLink("تحلیل مدرک",NativeIcons.DocumentScanner,Modifier.weight(1f)){select(Screen.SCANNER)}
+     SidebarLink("گفتگوهای من",NativeIcons.History,Modifier.weight(1f)){select(Screen.HISTORY)}
+    }
+    SidebarLink("کارها: مهلت‌ها، قوانین، محاسبه‌گر",NativeIcons.Briefcase,Modifier.fillMaxWidth()){vm.openWorks()}
     var query by rememberSaveable{mutableStateOf("")}
     if(s.sidebarHistory.size>3)OutlinedTextField(value=query,onValueChange={query=it},modifier=Modifier.fillMaxWidth(),singleLine=true,placeholder={Text("جستجو در گفتگوهای اخیر…",style=MaterialTheme.typography.labelSmall)},textStyle=MaterialTheme.typography.bodySmall,shape=SiteShape.Xl,colors=OutlinedTextFieldDefaults.colors(unfocusedTextColor=Color.White,focusedTextColor=Color.White,unfocusedBorderColor=Color.White.copy(alpha=.12f),focusedBorderColor=SiteGold,unfocusedContainerColor=Color.White.copy(alpha=.05f)))
     val history=s.sidebarHistory.filter{query.isBlank()||it.str("title").contains(query,ignoreCase=true)}

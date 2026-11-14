@@ -173,13 +173,16 @@ val SoftGlassLineDark=Color(0x1AFFFFFF)
  }
 }
 
-/** کارت طرح ویژه: گرادیان navy سایت + حاشیهٔ برنجی (border-brass-400/40). */
+/**
+ * کارت طرح ویژه — هم‌تراز با `.hs-plan--featured` لایهٔ ۲۰۲۶ وب:
+ * گرادیان مرکب ۱۳۵ درجه (#14384B → #0D2230 → #0A1A25) + هالهٔ برنزی گوشهٔ بالا + حاشیهٔ برنجی.
+ */
 @Composable fun FeaturedPlan(modifier:Modifier=Modifier,content:@Composable ColumnScope.()->Unit) {
  HsaiTheme(true) {
   Surface(modifier.fillMaxWidth(),color=Color.Transparent,shape=RoundedCornerShape(SiteDesign.SoftCardRadius),
-   border=BorderStroke(1.dp,Palette.Brass400.copy(alpha=.45f)),shadowElevation=0.dp) {
-   Box(Modifier.background(Brush.horizontalGradient(listOf(Palette.Navy900,Palette.Navy950)))) {
-    LegalGrid(Modifier.matchParentSize(),aurora=false)
+   border=BorderStroke(1.dp,Palette.Brass400.copy(alpha=.5f)),shadowElevation=0.dp) {
+   Box(Modifier.background(Brush.linearGradient(listOf(Color(0xFF14384B),Color(0xFF0D2230),Color(0xFF0A1A25))))) {
+    LegalGrid(Modifier.matchParentSize(),aurora=true)
     Column(Modifier.padding(22.dp),verticalArrangement=Arrangement.spacedBy(14.dp),content=content)
    }
   }

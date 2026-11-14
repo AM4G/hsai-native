@@ -13,6 +13,31 @@ enum class Screen(val title:String) {
  CHAT("گفتگوی حقوقی"), HISTORY("گفتگوهای من"), DOCUMENTS("اوراق قضایی"), SCANNER("تحلیل مدارک"),
  LAWS("بانک قوانین"), CALCULATORS("محاسبه‌گرها"), DEADLINES("مهلت‌های قانونی"), PLANS("اشتراک و پرداخت‌ها"), TICKETS("پشتیبانی"), ACCOUNT("حساب کاربری"), SETTINGS("تنظیمات")
 }
+/**
+ * ناوبری اپ دقیقاً پنج مقصد دارد.
+ *
+ * چرا کم شد: در نسخهٔ قبل یازده صفحه در منو بود و کاربر برای کار روزمره (پرسیدن، دیدن
+ * گفتگوها، ساختن برگه، تحلیل عکس) باید از میان نُه گزینه انتخاب می‌کرد؛ سه صفحهٔ
+ * «بانک قوانین»، «محاسبه‌گرها» و «مهلت‌ها» هم در اپ بومی نسخهٔ ناقص‌تری از همان چیزی
+ * بودند که در سایت هست. طبق سند پیشنهادها، این سه از ناوبری حذف شدند و کارشان این‌گونه
+ * انجام می‌شود: مهلت‌ها داخل پنجرهٔ «کارها»، و قوانین/محاسبه‌گرها با باز شدن همان صفحهٔ
+ * کامل سایت در مرورگر امن گوشی.
+ *
+ * صفحه‌های قدیمی (`Screen.LAWS`/`CALCULATORS`/`DEADLINES`) عمداً از enum حذف نشده‌اند:
+ * آزمون‌های موجود همان ترکیب‌ها را رندر می‌کنند و حذفشان بدون کامپایلر قابل تأیید نبود؛
+ * اما هیچ مسیر کاربری به آن‌ها نمی‌رسد ([Destination.legacy]).
+ */
+enum class Destination(val screen:Screen,val label:String) {
+ CHAT(Screen.CHAT,"گفتگو"), HISTORY(Screen.HISTORY,"گفتگوهای من"),
+ DOCUMENTS(Screen.DOCUMENTS,"اوراق قضایی"), SCANNER(Screen.SCANNER,"تحلیل مدرک"),
+ ACCOUNT(Screen.ACCOUNT,"حساب و تنظیمات");
+ companion object {
+  /** از ناوبری حذف شده‌اند و فقط از پنجرهٔ «کارها» قابل دسترسی‌اند. */
+  val legacy:Set<Screen> = setOf(Screen.LAWS,Screen.CALCULATORS,Screen.DEADLINES)
+  fun of(screen:Screen):Destination? = entries.firstOrNull{it.screen==screen}
+  fun isLegacy(screen:Screen):Boolean = screen in legacy
+ }
+}
 /** متن مرحلهٔ آغازین، واژه‌به‌واژه از ChatAgentPage.jsx (setStreamStage). */
 const val CHAT_STAGE_OPENING: String = "در حال اتصال به موتور حقوقی و تشخیص مرجع صالح..."
 enum class ChatStatus { IDLE, SENDING, RECEIVING, COMPLETED, STOPPED, FAILED, UNKNOWN }
@@ -34,7 +59,9 @@ data class AppUiState(
  val sessionLeft:Long?=null,val stale:Boolean=false,val staleAge:String="",
  val deadlineView:String="list",val calendarOffset:Int=0,val textScale:Float=1f,val ttsRate:Float=1f,val readMode:Boolean=false,val chatStatus:ChatStatus=ChatStatus.IDLE,val retryReviewed:Boolean=false,
  val conversationId:Long?=null,val failedChat:JSONObject?=null,val dialog:AppDialog?=null,
- val lawSlug:String="",val lawQuery:String="",val lawSource:String="all",val lawTab:String="search",val planCycle:String="monthly",val calculator:String="court_fee",val result:JSONObject?=null
+ val lawSlug:String="",val lawQuery:String="",val lawSource:String="all",val lawTab:String="search",val planCycle:String="monthly",val calculator:String="court_fee",val result:JSONObject?=null,
+ // دور ۳۲: سهمیهٔ مهمان (از پاسخ `/public/chat`) و وضعیت قفل برنامه در تنظیمات
+ val guestQuota:JSONObject=JSONObject(),val appLock:Boolean=false
 )
 sealed interface AppEffect {
  data class Toast(val text:String):AppEffect
@@ -70,6 +97,8 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
  // تنظیمات ظاهری/صوتی و کش فهرست‌ها: SharedPreferences ساده، بدون وابستگی تازه.
  private val uiPrefs by lazy { getApplication<Application>().getSharedPreferences("hsai_ui",android.content.Context.MODE_PRIVATE) }
  private val cachePrefs by lazy { getApplication<Application>().getSharedPreferences("hsai_cache",android.content.Context.MODE_PRIVATE) }
+ /** شناسهٔ پایدار نصب برای سهمیهٔ مهمان؛ هیچ دادهٔ شناسایی‌کنندهٔ کاربر در آن نیست. */
+ private val identity by lazy { DeviceIdentity(getApplication()) }
  private val cachedScreens = setOf("HISTORY","DOCUMENTS","SCANNER","DEADLINES","TICKETS","LAWS")
  /** زمان باقی‌ماندهٔ توکن برای بنر «نشست در شرف پایان». */
  fun updateSessionClock() {
@@ -87,8 +116,9 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
   viewModelScope.launch {
    val session=withContext(Dispatchers.IO) { vault.read() }
    api.token=session?.str("token").orEmpty()
-   change { it.copy(initialized=true,screen=Screen.CHAT,entryComplete=true,authenticated=api.token.isNotBlank(),user=session?.optJSONObject("user")?:JSONObject(),dark=vault.dark) }
+   change { it.copy(initialized=true,screen=Screen.CHAT,entryComplete=true,authenticated=api.token.isNotBlank(),user=session?.optJSONObject("user")?:JSONObject(),dark=vault.dark,appLock=runCatching{AppLock(getApplication()).enabled()}.getOrDefault(false)) }
    launch { runCatching { request("/config",authenticated=false) }.onSuccess { cfg->change { it.copy(config=cfg) } } }
+   if(api.token.isBlank())refreshGuestQuota()
    checkConnection(false)
    change{it.copy(textScale=uiPrefs.getFloat("text_scale",1f).coerceIn(0.85f,1.5f),ttsRate=uiPrefs.getFloat("tts_rate",1f).coerceIn(0.7f,1.6f),sessionLeft=SessionClock.secondsLeft(api.token,System.currentTimeMillis()/1000))}
    change{it.copy(reminderNotice=vault.reminderNotice)}
@@ -113,7 +143,7 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
  private suspend fun persist(user:JSONObject) {
   val token=api.token;val epoch=sessionEpoch
   val data=JSONObject().put("token",token).put("user",user)
-  try {withContext(Dispatchers.IO){synchronized(ReminderPrivacy){if(api.token==token&&sessionEpoch==epoch&&token.isNotBlank())vault.save(data)}}}
+  try {withContext(Dispatchers.IO){synchronized(ReminderPrivacy){if(api.token==token&&sessionEpoch==epoch&&token.isNotBlank())vault.save(data)}};if(token.isNotBlank())runCatching{DeadlineSync.syncSoon(getApplication())}}
   catch(c:CancellationException){throw c}catch(_:Exception){notice("نشست فقط تا بستن اپ باقی می‌ماند؛ ذخیره امن انجام نشد.")}
  }
  private suspend fun expire(expected:Int?=null):Boolean {
@@ -188,6 +218,21 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
  fun browseAsGuest() {
   if(state.value.posting)return
   back.clear();returnTo=Screen.CHAT;change{it.copy(entryComplete=true)};navigate(Screen.CHAT,false)
+  refreshGuestQuota()
+ }
+ /**
+  * خواندن سهمیهٔ مهمان از `/public/quota` برای همین نصب.
+  * عمداً بی‌صدا است: اگر سرویس پاسخ نداد، نوار سهمیه خالی می‌ماند و ارسال پیام
+  * همچنان کار می‌کند (سرور سهمیه را خودش نگه می‌دارد).
+  */
+ fun refreshGuestQuota() {
+  if(state.value.authenticated)return
+  viewModelScope.launch {
+   runCatching { api.guestQuota(identity.id()) }.onSuccess { raw->
+    val quota=GuestChat.quota(JSONObject().put("guest",raw.optJSONObject("guest")?:raw))
+    if(quota.length()>0)change { it.copy(guestQuota=quota) }
+   }
+  }
  }
  private fun post(block:suspend ()->Unit) {
   if(state.value.posting){notice("یک درخواست در حال انجام است.");return}
@@ -254,11 +299,12 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
   val d=try { request("/auth/otp/verify","POST",JSONObject().put("phone",phone).put("code",c),false) } catch(e:ApiException){throw ApiException(e.message.orEmpty(),e.status,"AUTH_FORM")}
   acceptAuth(d)
  } }
- fun logout() {Speaker.stop(); if(state.value.posting)return;viewModelScope.launch { if(!expire())return@launch;setDraft("");change { it.copy(image=null,failedChat=null) };back.clear();returnTo=Screen.CHAT;browseAsGuest();notice("از حساب خارج شدید.") } }
+ fun logout() {Speaker.stop(); if(state.value.posting)return;viewModelScope.launch { if(!expire())return@launch;runCatching{DeadlineSync.stop(getApplication())};setDraft("");change { it.copy(image=null,failedChat=null) };back.clear();returnTo=Screen.CHAT;browseAsGuest();notice("از حساب خارج شدید.") } }
  fun sendChat(retry:Boolean=false) {
   val s=state.value
   if(!retry&&s.draft.isBlank()&&s.image==null)return
-  if(!s.authenticated){loginRequired(Screen.CHAT);return}
+  // دور ۳۲: مهمان دیگر به صفحهٔ ورود پرت نمی‌شود؛ دو پیام رایگان از مسیر عمومی می‌گیرد.
+  if(!s.authenticated){sendGuestChat(s,retry);return}
   if(s.posting)return
   if(retry&&s.chatStatus==ChatStatus.UNKNOWN&&!s.retryReviewed){openDialog("retryChat","بررسی پیش از ارسال دوباره");return}
   val payload=if(retry)s.failedChat else JSONObject().put("message",s.draft.trim().ifBlank { if(s.image!=null)"این تصویر را تحلیل کن" else "" })
@@ -285,6 +331,53 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
     if(e is ApiException&&e.status==401){if(epoch==sessionEpoch&&expire(epoch)){setDraft(payload.str("message"));setImage(payload.str("image_base64").ifBlank { null });loginRequired(Screen.CHAT);preserved=true}}
     else if(epoch==sessionEpoch)change { it.copy(failedChat=payload,error=e.message.orEmpty(),chatStatus=if(e is ApiException&&ApiContract.definiteRejection(e.status))ChatStatus.FAILED else ChatStatus.UNKNOWN) }
     throw if(e is ApiException&&e.status==401)ApiException(if(preserved)"پیام حفظ شد؛ دوباره وارد شوید."else "پاسخ نشست قبلی کنار گذاشته شد.",0) else e
+   }
+  }
+ }
+ /**
+  * گفتگوی مهمان: حداکثر دو پیام، بدون حساب، از `/public/chat`.
+  *
+  * تصمیم‌های عمدی:
+  *  - جریانی (SSE) نیست: مسیر عمومی رویداد جویباری ندارد و نشان‌دادن «در حال نوشتن»
+  *    با پاسخ یک‌مرحله‌ای هم خوانا است.
+  *  - تصویر برای مهمان پذیرفته نمی‌شود (سرور هم نمی‌پذیرد)؛ پیام روشن داده می‌شود،
+  *    نه خطای مبهم پس از چند ثانیه انتظار.
+  *  - اگر سهمیه تمام باشد، پیش از ارسال درخواست پنجرهٔ ورود باز می‌شود؛ یک درخواست
+  *    بی‌فایده به سرور نمی‌رود.
+  *  - تاریخچه فقط چهار پیام آخر همین نشست می‌رود (نه بیشتر) تا بار و ریسک کم بماند.
+  */
+ private fun sendGuestChat(s:AppUiState,retry:Boolean) {
+  val text=s.draft.trim()
+  if(text.isBlank()&&s.image==null){return}
+  if(s.guestQuota.length()>0&&s.guestQuota.optBoolean("enabled",true)&&s.guestQuota.optInt("remaining",GuestChat.DEFAULT_LIMIT)<=0) {
+   loginRequired(Screen.CHAT)
+   notice("پیام‌های رایگان مهمان تمام شد؛ برای ادامه وارد حساب شوید.")
+   return
+  }
+  if(s.image!=null){notice("تحلیل تصویر برای مهمان ممکن نیست؛ برای این کار وارد حساب شوید.");return}
+  val message=text.ifBlank{"این تصویر را تحلیل کن"}
+  val history=GuestChat.history(s.messages)
+  val payload=JSONObject().put("message",message)
+  change { it.copy(messages=it.messages+ChatMessage("user",message),draft="",image=null,draftReady=false,draftTruncated=false,failedChat=null,error="",chatStatus=ChatStatus.SENDING,retryReviewed=false,stage=CHAT_STAGE_OPENING) }
+  val epoch=sessionEpoch
+  post {
+   try {
+    val d=api.guestChat(identity.id(),message,history)
+    if(epoch!=sessionEpoch)return@post
+    change { it.copy(
+     messages=it.messages+ApiContract.requireReply(GuestChat.message(d)),
+     guestQuota=GuestChat.quota(d).let { q->if(q.length()==0)it.guestQuota else q },
+     freeQuota=ApiContract.freeQuota(d)?:it.freeQuota,
+     chatStatus=ChatStatus.COMPLETED) }
+   } catch(e:Exception) {
+    if(e is CancellationException)throw e
+    val exhausted=e is ApiException&&GuestChat.exhausted(e.status,e.code)
+    if(epoch==sessionEpoch)change { it.copy(
+     failedChat=payload,
+     error=e.message.orEmpty(),
+     guestQuota=if(exhausted)JSONObject().put("enabled",true).put("limit",GuestChat.DEFAULT_LIMIT).put("used",GuestChat.DEFAULT_LIMIT).put("remaining",0)else it.guestQuota,
+     chatStatus=if(exhausted||(e is ApiException&&ApiContract.definiteRejection(e.status)))ChatStatus.FAILED else ChatStatus.UNKNOWN) }
+    throw e
    }
   }
  }
@@ -375,6 +468,27 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
   * پیام کاربر (failedChat) حفظ می‌شود تا بعد از تمدید اشتراک یک‌کلیک ارسال شود.
   */
  fun openUpgrade(message:String="") { change { it.copy(dialog=AppDialog("upgrade","ارتقا یا تمدید اشتراک",JSONObject().put("message",message))) } }
+ /** رفتن به یکی از پنج مقصد اصلی؛ مقصد خصوصی برای مهمان همان صفحهٔ ورود را باز می‌کند. */
+ fun openDestination(d:Destination) {
+  if(d.screen in privateScreens&&!state.value.authenticated){loginRequired(d.screen);return}
+  navigate(d.screen)
+ }
+ /** پنجرهٔ «کارها»: هر چیزی که صفحهٔ مستقل نیست، از همین‌جا یک ضربه دور است. */
+ fun openWorks() { openDialog("works","کارهای دیگر") }
+ /** مهلت‌ها داخل پنجرهٔ «کارها» نمایش داده می‌شوند، نه در یک صفحهٔ مستقل. */
+ fun loadDeadlines() {
+  if(!state.value.authenticated)return
+  val g=generation
+  post { val d=request("/deadlines?page=1");if(g==generation)change{it.copy(items=ApiContract.page(d,1,50).items)} }
+ }
+ /** قفل برنامه با قفل دستگاه؛ مقدار در حافظهٔ امن دستگاه می‌ماند، نه در سرور. */
+ fun setAppLock(enabled:Boolean) {
+  val lock=AppLock(getApplication())
+  if(enabled&&!lock.deviceHasLock()){notice(lock.status());return}
+  lock.setEnabled(enabled)
+  change { it.copy(appLock=lock.enabled()) }
+  notice(if(enabled)"قفل برنامه روشن شد."else"قفل برنامه خاموش شد.")
+ }
  fun confirmRetryAfterReview() {change{it.copy(retryReviewed=true,dialog=null)};sendChat(true)}
  fun stopChat() { if(state.value.posting&&state.value.chatStatus in setOf(ChatStatus.SENDING,ChatStatus.RECEIVING)){postJob?.cancel();change{it.copy(chatStatus=ChatStatus.STOPPED,failedChat=null)}} }
  fun cycle(cycle:String) { change { it.copy(planCycle=cycle) } }
@@ -392,7 +506,7 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
  fun viewDocument(id:Long,edit:Boolean=false,inline:Boolean=false) { if(state.value.posting)return;if(inline)change{it.copy(pane=null)};val g=generation;post { val d=request("/documents/$id");if(g!=generation)return@post;val item=d.optJSONObject("document")?:d;val title=item.str("title","برگه قضایی");val kind=if(edit)"documentEdit"else "documentView";if(inline)change{it.copy(pane=AppDialog(kind,title,item),error="",fieldErrors=emptyMap())}else openDialog(kind,title,item) } }
  fun createDocument(type:String,title:String,details:String) { post { validateFields("title" to {require(title.isNotBlank()){"عنوان برگه را بنویسید."}},"details" to {require(details.isNotBlank()){"شرح ماجرا را بنویسید."}});request("/documents","POST",ApiContract.documentBody(type,title,details));change { it.copy(dialog=null) };notice("برگه تنظیم شد.");if(state.value.screen==Screen.DOCUMENTS)refresh() } }
  fun saveDocument(id:Long,title:String,content:String) { post { validateFields("title" to {require(title.isNotBlank()){"عنوان را بنویسید."}},"content" to {require(content.isNotBlank()){"متن سند را بنویسید."}});request("/documents/$id","PUT",JSONObject().put("title",title).put("content",content));change { val pane=it.pane;it.copy(dialog=null,pane=if(pane?.kind=="documentEdit"&&pane.data.optLong("id")==id)AppDialog("documentView",title,JSONObject(pane.data.toString()).put("title",title).put("content",content))else pane,documentDrafts=it.documentDrafts-id) };refresh();notice("ذخیره شد.") } }
- fun delete(kind:String,id:Long) { post { request("/$kind/$id","DELETE");if(kind=="deadlines")DeadlineReminder.cancel(getApplication(),id);change { it.copy(dialog=null,pane=if(it.pane?.data?.optLong("id")==id) null else it.pane,documentDrafts=if(kind=="documents")it.documentDrafts-id else it.documentDrafts) };if(kind=="consultations"){change{it.copy(sidebarHistory=it.sidebarHistory.filterNot{item->item.optLong("id")==id})};if(state.value.conversationId==id)change { it.copy(conversationId=null,messages=emptyList()) }};refresh();notice("حذف شد.") } }
+ fun delete(kind:String,id:Long) { post { request("/$kind/$id","DELETE");if(kind=="deadlines")DeadlineMilestones.cancel(getApplication(),id);change { it.copy(dialog=null,pane=if(it.pane?.data?.optLong("id")==id) null else it.pane,documentDrafts=if(kind=="documents")it.documentDrafts-id else it.documentDrafts) };if(kind=="consultations"){change{it.copy(sidebarHistory=it.sidebarHistory.filterNot{item->item.optLong("id")==id})};if(state.value.conversationId==id)change { it.copy(conversationId=null,messages=emptyList()) }};refresh();notice("حذف شد.") } }
  val sessionVersion:Int get()=sessionEpoch
  fun downloadUnauthorized(requestToken:String,expectedSession:Int=sessionEpoch) { viewModelScope.launch { if(api.token==requestToken&&sessionEpoch==expectedSession&&expire(expectedSession)){loginRequired(Screen.DOCUMENTS);notice("نشست پایان یافته؛ برای دریافت سند دوباره وارد شوید.")} } }
  fun download(id:Long) { if(id<=0){notice("شناسه سند معتبر نیست.");return};if(api.token.isBlank())loginRequired()else events.tryEmit(AppEffect.Download(id,sessionEpoch)) }
@@ -411,6 +525,10 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
  fun completeDeadline(id:Long) { post { request("/deadlines/$id","PATCH",JSONObject().put("status","done"));DeadlineReminder.cancel(getApplication(),id);refresh() } }
  fun calendar(title:String,date:String) { runCatching { java.time.LocalDate.parse(date) }.onSuccess { events.tryEmit(AppEffect.Calendar(title,date)) }.onFailure { notice("تاریخ سرویس قابل تبدیل به تقویم نیست.") } }
  fun reminder(id:Long,title:String,date:String) { runCatching { java.time.LocalDate.parse(date) }.onSuccess { events.tryEmit(AppEffect.Remind(id,title,date,state.value.user.str("id"))) }.onFailure { notice("تاریخ میلادی معتبر لازم است.") } }
+ /** تعداد گام‌های یادآوری که واقعاً ثبت شد (۷/۳/۱ روز)؛ بخش آزمون/گزارش. */
+ fun reminderMilestones(id:Long,title:String,date:String):Int = runCatching {
+  DeadlineMilestones.schedule(getApplication(),id,title,date,state.value.user.str("id"))
+ }.onFailure { notice(it.message?:"ثبت یادآور ناموفق بود.") }.getOrDefault(0)
  fun createTicket(subject:String,message:String) { post { validateFields("subject" to {require(subject.isNotBlank()){"موضوع را بنویسید."}},"message" to {require(message.isNotBlank()){"متن درخواست را بنویسید."}});request("/tickets","POST",JSONObject().put("subject",subject).put("message",message));change { it.copy(dialog=null) };refresh();notice("تیکت ارسال شد.") } }
  fun replyTicket(id:Long,message:String) { post { validateFields("message" to {require(message.isNotBlank()){ "متن پاسخ را بنویسید." }});request("/tickets/$id/reply","POST",JSONObject().put("message",message));change { it.copy(dialog=null) };refresh();notice("پاسخ ارسال شد.") } }
  fun saveProfile(name:String,email:String,nationalId:String) { post {
