@@ -78,9 +78,9 @@ class AppLock(context: Context) {
                     android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_WEAK or
                         android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL
                 )
-                .setNegativeButton("لغو", executor) { _, _ -> onResult(false) }
                 .build()
-            prompt.authenticate(executor, object : BiometricPrompt.AuthenticationCallback() {
+            val signal = android.os.CancellationSignal()
+            prompt.authenticate(signal, executor, object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) {
                     markUnlocked(); onResult(true)
                 }
@@ -109,7 +109,7 @@ class AppLock(context: Context) {
 
     private fun biometricsReady(activity: Activity): Boolean = try {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-            android.hardware.biometrics.BiometricManager.from(activity).canAuthenticate(
+            (activity.getSystemService(android.hardware.biometrics.BiometricManager::class.java))?.canAuthenticate(
                 android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_WEAK or
                     android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL
             ) == android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS
