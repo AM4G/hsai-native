@@ -21,6 +21,7 @@ import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent
 CANDIDATES = [
+    ROOT.parent / "app/src/main/java/ir/hsai/mobile",
     ROOT.parent / "src/hsai-native/app/src/main/java/ir/hsai/mobile",
     ROOT.parent / "hsai-native/app/src/main/java/ir/hsai/mobile",
     pathlib.Path("app/src/main/java/ir/hsai/mobile"),

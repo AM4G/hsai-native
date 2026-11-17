@@ -9,6 +9,7 @@ import re, sys, os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CANDIDATES = [
+    os.path.join(HERE, '..', 'app', 'src', 'main', 'java', 'ir', 'hsai', 'mobile'),
     os.path.join(HERE, '..', 'src', 'hsai-native', 'app', 'src', 'main', 'java', 'ir', 'hsai', 'mobile'),
     os.path.join(HERE, '..', 'hsai-native', 'app', 'src', 'main', 'java', 'ir', 'hsai', 'mobile'),
 ]
@@ -23,8 +24,8 @@ BRASS = {50:'FBF8F1',100:'F5EEDC',200:'EAD9B5',300:'DCBE86',400:'CE9F58',500:'C3
 SOFT_LIGHT = {'BgLight':'F4F2EC','CardLight':'FBF9F5','Card2Light':'F7F4EE','WellLight':'EFECE4'}
 SOFT_DARK  = {'BgDark':'0B1B28','CardDark':'12293A','Card2Dark':'0F2334','WellDark':'0A1825'}
 
-# --- مرجع: کلاس‌های کامپوننت سایت
-BUBBLE_USER = [('1B3852'), ('0C1F2E')]      # .soft-bubble-user
+# --- مرجع: کلاس‌های کامپوننت سایت (لایه ۲۰۲۶ hsai-2026.css)
+BUBBLE_USER = [('14384B'), ('0B2231'), ('0A1B26')]      # .soft-bubble-user (2026 layer)
 RADII = {'Xl':'12','Xxl':'16','Xxxl':'24','Card':'24'}  # rounded-xl/2xl/3xl, .soft-card
 HERO = ('0D2130', '07141E')                  # from-navy-900 to-navy-950
 
@@ -67,9 +68,9 @@ for name, dp in RADII.items():
     ok(f'radius.{name}', f'val {name} = RoundedCornerShape({dp}.dp)' in theme or f'val {name}=RoundedCornerShape({dp}.dp)' in theme,
        f'(expected {dp}dp)')
 
-# ۴) حباب‌ها: شعاع ۲۲/۹ و گرادیان سرمه‌ای سایت
-ok('bubble.user_radius', 'topStart=22.dp,topEnd=22.dp,bottomStart=9.dp,bottomEnd=22.dp' in theme, '(user 22/9)')
-ok('bubble.ai_radius', 'topStart=22.dp,topEnd=22.dp,bottomStart=22.dp,bottomEnd=9.dp' in theme, '(ai 22/9)')
+# ۴) حباب‌ها: شعاع ۲۴/۸ و گرادیان سرمه‌ای لایه ۲۰۲۶ سایت
+ok('bubble.user_radius', 'topStart=24.dp,topEnd=24.dp,bottomStart=24.dp,bottomEnd=8.dp' in theme, '(user 24/8)')
+ok('bubble.ai_radius', 'fun bubbleAi()=RoundedCornerShape(24.dp)' in theme, '(ai 24)')
 for hexv in BUBBLE_USER:
     ok(f'bubble.user_color_{hexv}', f'Color(0xFF{hexv})' in screens, f'(expected 0xFF{hexv})')
 
@@ -200,4 +201,3 @@ print(f'{checks - len(fails)}/{checks} parity checks passed')
 for f in fails:
     print('FAIL', f)
 sys.exit(1 if fails else 0)
-

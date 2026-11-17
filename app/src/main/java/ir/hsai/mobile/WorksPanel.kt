@@ -14,13 +14,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
- * پنجرهٔ «کارها» — جای هر چیزی که مقصد اصلی نیست.
+ * پنجرهٔ «کارها» — دسترسی به ابزارهای جانبی و تخصصی برنامه.
  *
- * چرا این‌جاست و نه در منو: سه صفحهٔ «بانک قوانین»، «محاسبه‌گرها» و «مهلت‌ها» از ناوبری
- * حذف شدند چون نسخهٔ بومی‌شان همیشه عقب‌تر از سایت می‌ماند و منو را شلوغ می‌کرد. اما
- * خودِ نیاز باقی است: کاربر باید بتواند مهلت‌هایش را ببیند و به قانون/محاسبه‌گر برسد.
- * تصمیم: مهلت‌ها همان‌جا در همین پنجره (با همان تقویم شمسی و اعلان‌های ۷/۳/۱ روز)،
- * و قوانین/محاسبه‌گر با باز شدن صفحهٔ کامل سایت در مرورگر امن گوشی — نه یک نسخهٔ ناقص.
+ * ناوبری درون‌برنامه‌ای به مهلت‌ها، بانک قوانین، محاسبه‌گرها،
+ * طرح‌ها، پشتیبانی و تنظیمات با بستن دیالوگ و باز کردن صفحهٔ مربوطه.
  */
 fun Destination.symbol(): ImageVector = when (this) {
     Destination.CHAT -> NativeIcons.ChatBubbleOutline
@@ -66,42 +63,20 @@ private fun WorkRow(title: String, note: String, icon: ImageVector, onClick: () 
 
 @Composable
 fun WorksPanel(s: AppUiState, vm: AppViewModel) {
-    var showDeadlines by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            "مقصدهای اصلی همیشه در منو هستند (گفتگو، گفتگوهای من، اوراق، تحلیل مدرک، حساب). این بخش بقیهٔ کارهاست.",
+            "مقصدهای اصلی همیشه در منو هستند (گفتگو، گفتگوهای من، اوراق، تحلیل مدرک، حساب). این بخش دسترسی به سایر ابزارهاست.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        WorkRow("مهلت‌های من", "تقویم شمسی و یادآور ۷، ۳ و ۱ روز پیش", NativeIcons.CalendarClock) {
-            showDeadlines = !showDeadlines
-            if (showDeadlines && s.authenticated) vm.loadDeadlines()
+        WorkRow("مهلت‌های من", "تقویم شمسی، سررسیدها و یادآور ۷، ۳ و ۱ روز پیش", NativeIcons.CalendarClock) {
+            vm.closeDialog(); vm.navigate(Screen.DEADLINES)
         }
-        if (showDeadlines) {
-            if (!s.authenticated) {
-                Text("برای دیدن مهلت‌ها و ثبت یادآور وارد حساب شوید.", style = MaterialTheme.typography.bodySmall)
-                SoftButton(onClick = { vm.loginRequired(Screen.ACCOUNT) }) { Text("ورود به حساب") }
-            } else {
-                if (s.loading) Loading(s)
-                DeadlineMonthView(s, vm)
-                if (s.items.isEmpty() && !s.loading) {
-                    Text(
-                        "مهلتی ثبت نشده است. تاریخ پایان را با مرجع قضایی تطبیق دهید؛ اپ مهلت قانونی را حدس نمی‌زند.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                Text(
-                    "یادآورها ۷، ۳ و ۱ روز پیش از تاریخ ثبت‌شده اعلان می‌دهند. عنوان پرونده روی صفحهٔ قفل دیده نمی‌شود و اعلان جایگزین پیگیری پرونده نیست.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        WorkRow("بانک قوانین", "جستجو در متن رسمی قوانین، آرای وحدت رویه و واژه‌نامه", NativeIcons.MenuBook) {
+            vm.closeDialog(); vm.navigate(Screen.LAWS)
         }
-        WorkRow("بانک قوانین", "جستجو در متن رسمی، مقایسهٔ قدیم و جدید (در مرورگر)", NativeIcons.MenuBook) {
-            vm.openExternal("https://hsai.ir/laws")
-        }
-        WorkRow("محاسبه‌گرها", "هزینهٔ دادرسی، مهریه، ارث (در مرورگر، همین حساب)", NativeIcons.Calculate) {
-            vm.openExternal("https://hsai.ir/calculators")
+        WorkRow("محاسبه‌گرها", "۱۴ ابزار محاسبه مالی و قضایی (هزینه دادرسی، دیه، ارث و...)", NativeIcons.Calculate) {
+            vm.closeDialog(); vm.navigate(Screen.CALCULATORS)
         }
         WorkRow("طرح‌ها و پرداخت", "مشاهدهٔ سهمیه، تمدید و تاریخچهٔ پرداخت", NativeIcons.Crown) {
             vm.closeDialog(); vm.navigate(Screen.PLANS)
@@ -112,11 +87,6 @@ fun WorksPanel(s: AppUiState, vm: AppViewModel) {
         WorkRow("تنظیمات", "قفل برنامه، اندازهٔ متن، داده‌های گوشی", NativeIcons.Settings) {
             vm.closeDialog(); vm.navigate(Screen.SETTINGS)
         }
-        Text(
-            "قوانین و محاسبه‌گرها در مرورگر گوشی باز می‌شوند تا همیشه همان نسخهٔ روزِ سایت را ببینید؛ ورود شما در مرورگر جدا انجام می‌شود.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
