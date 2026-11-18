@@ -78,8 +78,8 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
  val effects=events.asSharedFlow()
  private var loadJob:Job?=null
  private var postJob:Job?=null
- private var generation=0
- private var sessionEpoch:Int=saved["session_epoch"]?:0
+ @Volatile private var generation=0
+ @Volatile private var sessionEpoch:Int=saved["session_epoch"]?:0
  private fun nextSession(){sessionEpoch++;saved["session_epoch"]=sessionEpoch}
  private var returnTo=Screen.CHAT
  private val back=mutableListOf<Screen>()
@@ -111,7 +111,7 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
  fun setReadMode(v:Boolean){change{it.copy(readMode=v)}}
  fun toggleDeadlineView(){change{it.copy(deadlineView=if(it.deadlineView=="list")"calendar" else "list")}}
  fun shiftCalendar(delta:Int){change{it.copy(calendarOffset=(it.calendarOffset+delta).coerceIn(-24,24))}}
- fun clearLocalCache(){cachePrefs.edit().clear().apply();change{it.copy(stale=false,staleAge="")};notice("داده‌های ذخیره‌شده برای حالت بی‌اتصال پاک شد.")}
+ fun clearLocalCache(silent:Boolean=false){cachePrefs.edit().clear().apply();change{it.copy(stale=false,staleAge="")};if(!silent)notice("داده‌های ذخیره‌شده برای حالت بی‌اتصال پاک شد.")}
  init {
   viewModelScope.launch {
    val session=withContext(Dispatchers.IO) { vault.read() }
@@ -151,9 +151,9 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
   if(state.value.entryComplete)returnTo=state.value.screen
   runCatching{androidx.work.WorkManager.getInstance(getApplication()).cancelAllWorkByTag("hsai-deadline")}
   back.clear();generation++;nextSession();val closing=sessionEpoch;api.token=""
-  withContext(Dispatchers.IO){synchronized(ReminderPrivacy){if(sessionEpoch==closing&&api.token.isBlank()){vault.clear();getApplication<Application>().getSystemService(android.app.NotificationManager::class.java).cancelAll()}}}
+  withContext(Dispatchers.IO){synchronized(ReminderPrivacy){if(sessionEpoch==closing&&api.token.isBlank()){vault.clear();cachePrefs.edit().clear().apply();getApplication<Application>().getSystemService(android.app.NotificationManager::class.java).cancelAll()}}}
   if(sessionEpoch!=closing||api.token.isNotBlank())return false
-  change{it.copy(authenticated=false,entryComplete=false,backDepth=0,sidebarHistory=emptyList(),user=JSONObject(),subscription=JSONObject(),items=emptyList(),data=JSONObject(),messages=emptyList(),conversationId=null,image=null,failedChat=null,dialog=null,pane=null,documentDrafts=emptyMap(),fieldErrors=emptyMap(),result=null,draftReady=false,pendingGuestMessage=false,chatStatus=ChatStatus.IDLE,retryReviewed=false,freeQuota=JSONObject())}
+  change{it.copy(authenticated=false,entryComplete=false,backDepth=0,sidebarHistory=emptyList(),user=JSONObject(),subscription=JSONObject(),items=emptyList(),data=JSONObject(),messages=emptyList(),conversationId=null,image=null,failedChat=null,dialog=null,pane=null,documentDrafts=emptyMap(),fieldErrors=emptyMap(),result=null,draftReady=false,pendingGuestMessage=false,chatStatus=ChatStatus.IDLE,retryReviewed=false,freeQuota=JSONObject(),stale=false,staleAge="")}
   return true
  }
  fun dismissReminderNotice(){reminderDismissed=true;vault.reminderNotice=false;change{it.copy(reminderNotice=false)}}
@@ -300,7 +300,7 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
   val d=try { request("/auth/otp/verify","POST",JSONObject().put("phone",phone).put("code",c),false) } catch(e:ApiException){throw ApiException(e.message.orEmpty(),e.status,"AUTH_FORM")}
   acceptAuth(d)
  } }
- fun logout() {Speaker.stop(); if(state.value.posting)return;viewModelScope.launch { if(!expire())return@launch;runCatching{DeadlineSync.stop(getApplication())};setDraft("");change { it.copy(image=null,failedChat=null) };back.clear();returnTo=Screen.CHAT;browseAsGuest();notice("از حساب خارج شدید.") } }
+ fun logout() {Speaker.stop(); if(state.value.posting)return;viewModelScope.launch { if(!expire())return@launch;clearLocalCache(silent=true);runCatching{DeadlineSync.stop(getApplication())};setDraft("");change { it.copy(image=null,failedChat=null) };back.clear();returnTo=Screen.CHAT;browseAsGuest();notice("از حساب خارج شدید.") } }
  fun sendChat(retry:Boolean=false) {
   val s=state.value
   if(!retry&&s.draft.isBlank()&&s.image==null)return
@@ -438,7 +438,8 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
   }
   val g=++generation;val epoch=sessionEpoch;loadJob?.cancel();change { it.copy(loading=true,error="",page=page) }
   loadJob=viewModelScope.launch {
-   val cacheKey=ListCache.key(s.screen.name,page,if(s.screen==Screen.LAWS)s.lawQuery+"|"+s.lawSource+"|"+s.lawSlug else "")
+   val userScope=if(s.screen==Screen.LAWS)"public" else if(s.authenticated)s.user.optLong("id",0).takeIf{it>0}?.let{"user:$it"}?:"user" else "guest"
+   val cacheKey=ListCache.key("$userScope:${s.screen.name}",page,if(s.screen==Screen.LAWS)s.lawQuery+"|"+s.lawSource+"|"+s.lawSlug else "")
    try {
     val d=request(endpoint,authenticated=s.screen !in listOf(Screen.LAWS,Screen.PLANS));if(g!=generation||epoch!=sessionEpoch)return@launch
     val paged=ApiContract.page(d,page,if(s.screen==Screen.LAWS)15 else if(s.screen in listOf(Screen.HISTORY,Screen.DOCUMENTS))30 else 20,s.lawTab)
@@ -495,6 +496,7 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
  fun cycle(cycle:String) { change { it.copy(planCycle=cycle) } }
  fun calculator(id:String) { generation++;change { it.copy(calculator=id,result=null,error="") } }
  fun compute(values:Map<String,String>) {
+  if(!state.value.authenticated){loginRequired(Screen.CALCULATORS);notice("برای استفاده از محاسبه‌گرهای حقوقی وارد حساب کاربری شوید.");return}
   // FIX(crash): شناسهٔ ناشناخته (مثلاً پس از به‌روزرسانی اپ) باعث NoSuchElementException می‌شد.
   val calculator=Domain.calculatorOrNull(state.value.calculator)
   if(calculator==null){val fixed=Domain.calculators.first();change{it.copy(calculator=fixed.id,result=null)};notice("ماشین‌حساب انتخاب‌شده دیگر موجود نیست؛ «${fixed.title}» باز شد.");return}
@@ -502,7 +504,7 @@ class AppViewModel @JvmOverloads constructor(app:Application,private val saved:S
   post {
   change{it.copy(result=null)}
   val body=CalculatorContract.body(calculator,values)
-  val result=request("/calculators/compute","POST",body,false);if(g==generation&&state.value.screen==Screen.CALCULATORS&&state.value.calculator==calculator.id)change { it.copy(result=result) }
+  val result=request("/calculators/compute","POST",body,true);if(g==generation&&state.value.screen==Screen.CALCULATORS&&state.value.calculator==calculator.id)change { it.copy(result=result) }
  } }
  fun viewDocument(id:Long,edit:Boolean=false,inline:Boolean=false) { if(state.value.posting)return;if(inline)change{it.copy(pane=null)};val g=generation;post { val d=request("/documents/$id");if(g!=generation)return@post;val item=d.optJSONObject("document")?:d;val title=item.str("title","برگه قضایی");val kind=if(edit)"documentEdit"else "documentView";if(inline)change{it.copy(pane=AppDialog(kind,title,item),error="",fieldErrors=emptyMap())}else openDialog(kind,title,item) } }
  fun createDocument(type:String,title:String,details:String) { post { validateFields("title" to {require(title.isNotBlank()){"عنوان برگه را بنویسید."}},"details" to {require(details.isNotBlank()){"شرح ماجرا را بنویسید."}});request("/documents","POST",ApiContract.documentBody(type,title,details));change { it.copy(dialog=null) };notice("برگه تنظیم شد.");if(state.value.screen==Screen.DOCUMENTS)refresh() } }

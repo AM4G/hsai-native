@@ -704,7 +704,8 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
   Text(title,fontWeight=FontWeight.Medium);Text(dateFa(date))
   if(DaysLeft.label(if(d.has("days_left"))d.optInt("days_left") else null).isNotBlank())Text(DaysLeft.label(d.optInt("days_left")),style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.Bold,color=if(DaysLeft.overdue(d.optInt("days_left")))MaterialTheme.colorScheme.error else if(DaysLeft.urgent(d.optInt("days_left")))MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
   Text("میلادی: \u2066"+date.take(10)+"\u2069",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-  Text(if(d.str("status")=="done")"انجام‌شده"else "باز",color=MaterialTheme.colorScheme.primary)
+  val done=d.str("status")=="done"
+  Surface(color=if(done)(if(LocalSiteDark.current)Palette.OkSoftDark else Palette.OkSoftLight)else(if(LocalSiteDark.current)Color(0x1AFFFFFF)else Palette.Slate100),shape=SiteShape.Chip){Text(if(done)"انجام‌شده"else "باز",Modifier.padding(horizontal=9.dp,vertical=3.dp),style=MaterialTheme.typography.labelSmall,fontWeight=FontWeight.Bold,color=if(done)(if(LocalSiteDark.current)Palette.OkBright else Palette.Ok)else(if(LocalSiteDark.current)Palette.Slate300 else Palette.Slate700))}
   if(d.str("notes").isNotBlank())Text(d.str("notes"),style=MaterialTheme.typography.bodySmall)
   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
    if(d.str("status")!="done")SoftButton(onClick={vm.completeDeadline(d.optLong("id"))},enabled=!s.posting){Text("انجام شد")}

@@ -104,7 +104,7 @@ private fun WorkRow(title: String, note: String, icon: ImageVector, onClick: () 
                 Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Text(note, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Icon(NativeIcons.ExpandMore, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(NativeIcons.NorthWest, null, Modifier.size(16.dp), tint = Palette.Brass400)
         }
     }
 }

@@ -183,7 +183,7 @@ private fun hsaiShapes()=Shapes(
  Surface(onClick=onClick,enabled=enabled,modifier=modifier.heightIn(min=44.dp),shape=SiteShape.Xl,
   color=if(onCard)Soft.well() else Soft.card(),
   contentColor=if(enabled)ink else Soft.inkMuted(),
-  border=BorderStroke(1.dp,Soft.border()),
+  border=BorderStroke(1.dp,if(enabled)Soft.border() else Soft.border().copy(alpha=.45f)),
   shadowElevation=if(dark||!enabled)0.dp else 2.dp) {
   CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.labelLarge) {
    Row(Modifier.padding(horizontal=16.dp,vertical=11.dp),horizontalArrangement=Arrangement.spacedBy(7.dp),verticalAlignment=Alignment.CenterVertically,content=content)

@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -380,7 +381,7 @@ object AnswerMode {
                         fontWeight = FontWeight.ExtraBold, color = if (LocalSiteDark.current) Palette.OkBright else Palette.OkLo)
                     if (v.optInt("corrections_applied", 0) > 0) Text("اصلاح‌شده",
                         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Icon(if (open) NativeIcons.ExpandMore else NativeIcons.ExpandMore, null, Modifier.size(16.dp),
+                    Icon(NativeIcons.ExpandMore, null, Modifier.size(16.dp).rotate(if (open) 180f else 0f),
                         tint = if (LocalSiteDark.current) Palette.OkBright else Palette.OkLo)
                 }
             }

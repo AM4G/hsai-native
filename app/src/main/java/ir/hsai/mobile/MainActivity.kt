@@ -108,7 +108,16 @@ class MainActivity:ComponentActivity() {
    // بارگذاری نمی‌شود؛ صفحهٔ قفل فقط یک دکمه دارد.
    val lock=remember{AppLock(applicationContext)}
    var locked by remember{mutableStateOf(lock.locked())}
-   LaunchedEffect(Unit){ if(lock.locked())lock.prompt(this@MainActivity){ok->locked=!ok} }
+   val lifecycleOwner=androidx.lifecycle.compose.LocalLifecycleOwner.current
+   DisposableEffect(lifecycleOwner){
+    val observer=androidx.lifecycle.LifecycleEventObserver{_,event->
+     if(event==Lifecycle.Event.ON_START||event==Lifecycle.Event.ON_RESUME){
+      if(lock.locked()){locked=true;lock.prompt(this@MainActivity){ok->locked=!ok}}
+     }
+    }
+    lifecycleOwner.lifecycle.addObserver(observer)
+    onDispose{lifecycleOwner.lifecycle.removeObserver(observer)}
+   }
    if(locked) {
     HsaiTheme(state.dark){LockScreen(lock.status()){lock.prompt(this@MainActivity){ok->locked=!ok}}}
    } else {
