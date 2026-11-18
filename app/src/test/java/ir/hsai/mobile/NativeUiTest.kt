@@ -364,6 +364,7 @@ data: {"answer":"متن پاسخ","conversation_id":42,"message_id":77,"subscrip
   // دور ۳۲: مهمان دو پیام رایگان دارد؛ برای آزمودن پنجره ورود مهمان، سهمیه را تمام‌شده فرض می‌کنیم.
   vm.setGuestQuotaForTest(0)
   compose.onNode(hasSetTextAction()).performTextInput("پرسش مهمان برای ادامه پس از ورود")
+  compose.waitForIdle()
   compose.onNodeWithContentDescription("ارسال پیام").performClick()
   compose.onNodeWithText("ورود به میز کار حق‌سنج").assertExists()
   assertEquals("پرسش مهمان برای ادامه پس از ورود",vm.state.value.draft);assertTrue(vm.state.value.messages.isEmpty());assertTrue(requests.isEmpty())

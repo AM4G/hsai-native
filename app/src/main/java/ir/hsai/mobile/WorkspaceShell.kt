@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
@@ -67,7 +68,19 @@ fun workspaceLayout(widthDp:Float):WorkspaceLayout = when {
          // نه سرفیس یک‌رنگ M3؛ حالا همان لایه با همان گرادیان ساخته می‌شود.
          Column(Modifier.background(clayBarBrush())) {
          Box(Modifier.fillMaxWidth().height(1.5.dp).background(clayBarEdge()))
-         TopAppBar(title={Text(if(s.screen==Screen.CHAT&&s.conversationId==null)"گفتگوی حقوقی جدید"else s.screen.title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,modifier=Modifier.semantics{heading()})},
+         TopAppBar(title={
+          Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+           Text(if(s.screen==Screen.CHAT&&s.conversationId==null)"گفتگوی حقوقی جدید"else s.screen.title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,modifier=Modifier.semantics{heading()})
+           if(s.screen==Screen.CHAT&&s.online) {
+            Surface(color=if(s.dark)Palette.OkSoftDark else Palette.OkSoftLight,shape=SiteShape.Chip) {
+             Row(Modifier.padding(horizontal=7.dp,vertical=3.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+              Box(Modifier.size(6.dp).background(if(s.dark)Palette.OkBright else Palette.Ok,androidx.compose.foundation.shape.CircleShape))
+              Text("آنلاین",style=MaterialTheme.typography.labelSmall,fontWeight=FontWeight.Bold,color=if(s.dark)Palette.OkBright else Palette.Ok)
+             }
+            }
+           }
+          }
+         },
           // سایت: `hsai-tap` = حداقل ۲٫۷۵rem (۴۴dp) — دکمه‌های ۴۰dp قبلی زیر حد لمسی بودند.
           // رنگ هم عیناً از سایت: bg-slate-100 dark:bg-white/10 (نه Soft.well).
           navigationIcon={if(layout==WorkspaceLayout.COMPACT)IconButton(onClick={scope.launch{drawer.open()}},modifier=Modifier.padding(start=6.dp).size(44.dp).background(if(s.dark)Color(0x1AFFFFFF) else Palette.Slate100,SiteShape.Xl)){Icon(NativeIcons.Menu,"منوی اصلی",Modifier.size(20.dp))}},
@@ -79,7 +92,8 @@ fun workspaceLayout(widthDp:Float):WorkspaceLayout = when {
            // آیکون Moon در روشن (navy-700) و Sun در تیره (brass-300).
            IconButton(onClick=vm::toggleTheme,modifier=Modifier.padding(horizontal=4.dp).size(44.dp).border(1.dp,if(s.dark)Color(0x26FFFFFF) else Palette.Slate200,SiteShape.Xl).background(if(s.dark)Color(0x1AFFFFFF) else Color.White,SiteShape.Xl)){Icon(if(s.dark)NativeIcons.LightMode else NativeIcons.DarkMode,if(s.dark)"روشن‌کردن پوسته"else "تاریک‌کردن پوسته",Modifier.size(18.dp),tint=if(s.dark)Palette.Brass300 else Palette.Navy700)}
           },colors=TopAppBarDefaults.topAppBarColors(containerColor=Color.Transparent,titleContentColor=Soft.ink(),actionIconContentColor=Soft.ink()))
-         Box(Modifier.fillMaxWidth().height(1.dp).background(Soft.hairline()))
+         // نوار هایرلاین برنزی زیر سربرگ (عیناً از .hs-chat__top::after در لایهٔ ۲۰۲۶ وب)
+         Box(Modifier.fillMaxWidth().height(1.dp).background(Brush.horizontalGradient(listOf(Color.Transparent,Palette.Brass400.copy(alpha=.45f),Color.Transparent))))
          }
         }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {

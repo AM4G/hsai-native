@@ -253,7 +253,23 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
  LazyColumn(state=list,modifier=Modifier.fillMaxSize(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
   if(s.messages.isEmpty())item {HomeContent(s,vm)}
   itemsIndexed(s.messages){index,m->MessageCard(m,s.posting,vm,index==s.messages.lastIndex)}
-  if(s.posting&&s.chatStatus in setOf(ChatStatus.SENDING,ChatStatus.RECEIVING))item{Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){CircularProgressIndicator(Modifier.size(19.dp),strokeWidth=2.dp);Text(s.stage.ifBlank{"در حال بررسی و آماده‌سازی پاسخ…"},style=MaterialTheme.typography.bodySmall)}}
+  if(s.posting&&s.chatStatus in setOf(ChatStatus.SENDING,ChatStatus.RECEIVING))item {
+   Surface(Modifier.fillMaxWidth(),shape=SiteShape.Card,color=Soft.card(),border=BorderStroke(1.dp,Palette.Brass400.copy(alpha=.6f)),shadowElevation=if(LocalSiteDark.current)0.dp else 2.dp) {
+    Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+      CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp,color=Palette.Brass500)
+      Text(s.stage.ifBlank{"در حال بررسی قوانین ایران و آماده‌سازی پاسخ…"},style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.ExtraBold,color=if(LocalSiteDark.current)Palette.Slate50 else Palette.Navy950)
+     }
+     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End) {
+      TextButton(onClick=vm::stopChat,enabled=s.posting,contentPadding=PaddingValues(horizontal=8.dp,vertical=4.dp)) {
+       Icon(NativeIcons.Close,null,Modifier.size(14.dp),tint=MaterialTheme.colorScheme.error)
+       Spacer(Modifier.width(4.dp))
+       Text("توقف دریافت پاسخ",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.error)
+      }
+     }
+    }
+   }
+  }
   if(s.failedChat!=null)item {ErrorNotice(s);SoftButton(onClick={if(s.chatStatus==ChatStatus.UNKNOWN)vm.openDialog("retryChat","بررسی پیش از ارسال دوباره")else vm.sendChat(true)},enabled=!s.posting){Text("ارسال دوباره همان پیام")}}
  }
  // P1-1: وقتی کاربر بالاتر از انتهای گفتگو است، برگشتن به آخرین پیام یک ضربه باشد.
@@ -305,26 +321,37 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
  }
 }
 @Composable fun HomeContent(s:AppUiState,vm:AppViewModel) {
- Column(verticalArrangement=Arrangement.spacedBy(24.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-  BrandEmblem(48.dp)
-  Text("چه کمکی از دستم برمی‌آید؟",modifier=Modifier.widthIn(max=720.dp),style=MaterialTheme.typography.titleLarge.copy(lineHeight=30.sp),fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
-  Text("موضوع حقوقی‌تان را بنویسید؛ مدارک را هم می‌توانید پیوست کنید.",modifier=Modifier.widthIn(max=760.dp),color=MaterialTheme.colorScheme.onSurfaceVariant,textAlign=TextAlign.Center,style=MaterialTheme.typography.bodyMedium)
-  BoxWithConstraints(Modifier.fillMaxWidth()) {
-   val action:@Composable (Screen,Modifier)->Unit={screen,modifier ->
-    val scan=screen==Screen.SCANNER
-    Surface(onClick={vm.navigate(screen)},modifier=modifier,shape=SiteShape.Xxl,color=if(scan)Palette.Navy950 else Soft.card(),border=BorderStroke(1.dp,if(scan)Palette.Brass400.copy(alpha=.45f) else Palette.Brass300)) {
-     Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-      Icon(if(scan)NativeIcons.ScanSearch else NativeIcons.FileSignature,null,Modifier.size(28.dp),tint=if(scan)SiteGold else Copper)
-      Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-       Text(if(scan)"عکس ابلاغیه ثنا، پیامک دادگاه یا قرارداد را بفرستید"else "تنظیم برگه شکایت",style=MaterialTheme.typography.labelLarge,fontWeight=FontWeight.Bold,color=if(scan)Palette.Brass300 else MaterialTheme.colorScheme.onSecondaryContainer)
-       Text(if(scan)"با قابلیت پوشاندن مشخصات حساس، قبل از ارسال"else "پرسش‌وپاسخ گام‌به‌گام، بدون فرم سخت اداری",style=MaterialTheme.typography.bodySmall,color=if(scan)Palette.Slate300 else MaterialTheme.colorScheme.onSecondaryContainer)
-      }
-     }
+ Column(verticalArrangement=Arrangement.spacedBy(20.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+  BrandEmblem(56.dp)
+  Text("مسئلهٔ حقوقی‌تان را ساده بگویید",modifier=Modifier.widthIn(max=720.dp),style=MaterialTheme.typography.titleLarge.copy(lineHeight=32.sp),fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
+  Text("در چند خط بنویسید چه اتفاقی افتاده؛ مسیر قانونی، مدارک لازم و قدم بعدی را روشن می‌کنم.",modifier=Modifier.widthIn(max=760.dp),color=MaterialTheme.colorScheme.onSurfaceVariant,textAlign=TextAlign.Center,style=MaterialTheme.typography.bodyMedium)
+
+  if(!s.authenticated&&s.guestQuota.length()>0) {
+   val remaining=s.guestQuota.optInt("remaining",2)
+   Surface(color=if(LocalSiteDark.current)Palette.Brass400.copy(alpha=.12f) else Palette.Amber50,border=BorderStroke(1.dp,Palette.Brass300.copy(alpha=.7f)),shape=SiteShape.Chip) {
+    Row(Modifier.padding(horizontal=12.dp,vertical=5.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+     Icon(NativeIcons.AutoAwesome,null,Modifier.size(14.dp),tint=if(LocalSiteDark.current)Palette.Brass300 else Palette.Brass800)
+     Text("حالت مهمان — ${fa(remaining)} پیام آزمایشی، بدون ثبت‌نام",style=MaterialTheme.typography.labelSmall,fontWeight=FontWeight.Bold,color=if(LocalSiteDark.current)Palette.Brass300 else Palette.Brass900)
     }
    }
-   if(maxWidth>=600.dp)Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){action(Screen.SCANNER,Modifier.weight(1.7f));action(Screen.DOCUMENTS,Modifier.weight(1f))}
-   else Column(verticalArrangement=Arrangement.spacedBy(12.dp)){action(Screen.SCANNER,Modifier.fillMaxWidth());action(Screen.DOCUMENTS,Modifier.fillMaxWidth())}
   }
+
+  // دو کپسول اقدام مستقیم همانند ChatAgentPage.jsx
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp,Alignment.CenterHorizontally)) {
+   Surface(onClick={vm.navigate(Screen.SCANNER)},modifier=Modifier.semantics{contentDescription="عکس ابلاغیه ثنا، پیامک دادگاه یا قرارداد را بفرستید"},shape=SiteShape.Chip,color=Palette.Navy950,contentColor=Palette.Brass300,border=BorderStroke(1.dp,Palette.Brass400.copy(alpha=.45f))) {
+    Row(Modifier.heightIn(min=44.dp).padding(horizontal=14.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+     Icon(NativeIcons.PhotoCamera,"عکس ابلاغیه یا قرارداد دارم",Modifier.size(16.dp),tint=Palette.Brass300)
+     Text("عکس ابلاغیه یا قرارداد دارم",style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.ExtraBold)
+    }
+   }
+   Surface(onClick={vm.setDraft("می‌خواهم برایم یک برگه رسمی شکایت، دادخواست یا اظهارنامه تنظیم کنی")},shape=SiteShape.Chip,color=if(LocalSiteDark.current)Palette.Brass400.copy(alpha=.15f) else Palette.Amber50,contentColor=if(LocalSiteDark.current)Palette.Brass300 else Palette.Navy950,border=BorderStroke(1.dp,Palette.Brass300)) {
+    Row(Modifier.heightIn(min=44.dp).padding(horizontal=14.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+     Icon(NativeIcons.FileSignature,null,Modifier.size(16.dp),tint=if(LocalSiteDark.current)Palette.Brass300 else Palette.Brass700)
+     Text("تنظیم برگه شکایت",style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.ExtraBold)
+    }
+   }
+  }
+
   var moreTopics by rememberSaveable{mutableStateOf(false)}
   // همان ترتیب و همان آیکون‌های LIFE_SITUATION_CARDS در ChatAgentPage.jsx:
   // Wallet · Home · Heart · Briefcase · AlertTriangle · Users
@@ -335,6 +362,16 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
    Triple("محل کار و بیمه","کارفرما حقوق، بیمه یا سنواتم را نداده",NativeIcons.Briefcase),
    Triple("اینترنت، کلاهبرداری و جرم","کلاه سرم رفته، فیشینگ شده یا مزاحمم شده‌اند",NativeIcons.AlertTriangle),
    Triple("ارث و میراث خانوادگی","انحصار وراثت و تقسیم ارث بعد از فوت",NativeIcons.Users))
+
+  val topicPrompts=mapOf(
+   "طلبم را نمی‌دهند یا چکم برگشت خورده" to "به کسی پول قرض داده‌ام یا چک و سفته‌اش دست من است اما پولم را پس نمی‌دهد؛ به زبان ساده بگو چطور سریع پولم را زنده کنم؟",
+   "مشکل پول پیش، تخلیه خانه یا قولنامه ملک" to "مدت اجاره تمام شده و سر تخلیه خانه یا پس گرفتن پول پیش (ودیعه) به مشکل خورده‌ایم؛ دقیقاً فردا صبح باید چه کار کنم؟",
+   "مهریه، نفقه، طلاق یا حضانت فرزند" to "درباره مهریه، نفقه، طلاق یا حضانت فرزند به زبان کاملاً ساده راهنمایی می‌خواهم؛ سریع‌ترین و کم‌هزینه‌ترین راه قانونی چیست؟",
+   "کارفرما حقوق، بیمه یا سنوات من را نداده" to "کارفرما حقوق، بیمه یا سنوات من را نداده یا اخراجم کرده است؛ بدون هزینه دادگاه چطور از طریق اداره کار حقم را بگیرم؟",
+   "کلاه سرم رفته، فیشینگ شده یا مزاحمم شده‌اند" to "اینترنتی از حسابم پول برداشت شده یا سرم کلاه گذاشته‌اند؛ همین الان چطور شکایت کنم تا حساب طرف مسدود شود؟",
+   "انحصار وراثت و تقسیم ارث بعد از فوت" to "یکی از بستگان درجه یک فوت کرده است؛ مراحل گرفتن گواهی انحصار وراثت و تقسیم سهم‌الارث به زبان ساده چیست؟"
+  )
+
   BoxWithConstraints(Modifier.fillMaxWidth()) {
    val scale=androidx.compose.ui.platform.LocalDensity.current.fontScale
    val columns=if(maxWidth>=900.dp&&scale<1.3f)3 else if(maxWidth>=600.dp&&scale<1.4f)2 else 1
@@ -348,7 +385,10 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
     val (badge,title,topicIcon)=topic
     // سایت: <button class="hsai-glass p-3.5 rounded-2xl …"> با آیکون ۱۴dp + برچسب برنجی ۱۱px
     // و متن اصلی font-black navy-950 / slate-50. پس کارت اینجا hsai-glass است، نه soft-card.
-    GlassCard(modifier=modifier.heightIn(min=88.dp).clickable(onClickLabel=title){vm.chooseTopic(title)},glass=true,pad=14,radiusDp=16,spacing=6) {
+    GlassCard(modifier=modifier.heightIn(min=88.dp).clickable(onClickLabel=title){
+     topicPrompts[title]?.let{vm.setDraft(it)}
+     vm.chooseTopic(title)
+    },glass=true,pad=14,radiusDp=16,spacing=6) {
      // FIX(ui): عرض ردیف محدود نبود و برچسب بلند از لبهٔ کارت بیرون می‌زد/بریده می‌شد.
      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
       Icon(topicIcon,null,Modifier.size(14.dp),tint=if(LocalSiteDark.current)Palette.Brass300 else Palette.Brass700)
@@ -490,14 +530,17 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
   }
  }
  var tab by rememberSaveable{mutableStateOf("profile")}
- FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+ FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
   FilterChip(selected=tab=="profile",onClick={tab="profile"},label={Text("پروفایل و هویت")},colors=FilterChipDefaults.filterChipColors(containerColor=Soft.card(),labelColor=Soft.inkMuted(),selectedContainerColor=Palette.Brass100,selectedLabelColor=Palette.Brass900))
   FilterChip(selected=tab=="security",onClick={tab="security"},label={Text("امنیت و رمز عبور")},colors=FilterChipDefaults.filterChipColors(containerColor=Soft.card(),labelColor=Soft.inkMuted(),selectedContainerColor=Palette.Brass100,selectedLabelColor=Palette.Brass900))
-  AssistChip(onClick={vm.navigate(Screen.PLANS)},label={Text("اشتراک و پرداخت‌ها")})
+  FilterChip(selected=tab=="billing",onClick={tab="billing"},label={Text("اشتراک و مالی")},colors=FilterChipDefaults.filterChipColors(containerColor=Soft.card(),labelColor=Soft.inkMuted(),selectedContainerColor=Palette.Brass100,selectedLabelColor=Palette.Brass900))
+  FilterChip(selected=tab=="support",onClick={tab="support"},label={Text("پشتیبانی و تیکت")},colors=FilterChipDefaults.filterChipColors(containerColor=Soft.card(),labelColor=Soft.inkMuted(),selectedContainerColor=Palette.Brass100,selectedLabelColor=Palette.Brass900))
+  AssistChip(onClick={vm.navigate(Screen.PLANS)},label={Text("طرح‌های اشتراک")})
   AssistChip(onClick={vm.navigate(Screen.TICKETS)},label={Text("تیکت‌های پشتیبانی")})
  }
  Loading(s);ErrorNotice(s,{vm.refresh()})
- if(tab=="profile") {
+ when(tab) {
+  "profile"->{
   val owner=s.user.optLong("id")
   var name by remember(owner){mutableStateOf(s.user.str("full_name"))}
   var email by remember(owner){mutableStateOf(s.user.str("email"))}
@@ -525,10 +568,32 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
     TextButton(onClick={vm.loadIdentities()},enabled=!s.posting){Text("روش‌های ورود")}
    }
   }})
- } else GlassCard {
-  Text("امنیت و رمز عبور",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-  Text("رمز عبور روی این دستگاه ذخیره نمی‌شود.")
-  SoftButton(onClick={vm.openDialog("password","تغییر رمز عبور")},enabled=!s.posting){Text("تغییر رمز عبور")}
+  }
+  "security"->GlassCard {
+   Text("امنیت و رمز عبور",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+   Text("رمز عبور روی این دستگاه ذخیره نمی‌شود.")
+   SoftButton(onClick={vm.openDialog("password","تغییر رمز عبور")},enabled=!s.posting){Text("تغییر رمز عبور")}
+   HorizontalDivider(color=Soft.hairline())
+   Text("روش‌های ورود به حساب",style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.Bold)
+   SoftButton(onClick={vm.loadIdentities()},enabled=!s.posting){Text("مدیریت روش‌های ورود")}
+  }
+  "billing"->GlassCard {
+   Text("اشتراک و سهمیهٔ فعال شما",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+   Text(s.subscription.str("plan_name",if(s.authenticated)"حساب کاربری فعال"else "کاربر مهمان"),style=MaterialTheme.typography.titleSmall,color=Palette.Brass800)
+   if(s.subscription.has("days_remaining"))Text("${fa(s.subscription.optInt("days_remaining"))} روز اعتبار باقی‌مانده",fontWeight=FontWeight.Bold,color=Palette.Ok)
+   FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    Button(onClick={vm.navigate(Screen.PLANS)},shape=SiteShape.Xl,colors=ButtonDefaults.buttonColors(containerColor=Palette.Navy950,contentColor=Palette.Brass300)){Icon(NativeIcons.Crown,null,Modifier.size(16.dp));Spacer(Modifier.width(6.dp));Text("طرح‌های اشتراک و تمدید")}
+    SoftButton(onClick={vm.billingSummary()},enabled=!s.posting){Icon(NativeIcons.History,null,Modifier.size(16.dp));Spacer(Modifier.width(6.dp));Text("صورت‌حساب و تاریخچه")}
+   }
+  }
+  "support"->GlassCard {
+   Text("پشتیبانی و تیکت‌ها",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+   Text("برای پیگیری مشکلات فنی، مالی یا خدمات، درخواست پشتیبانی ثبت کنید.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+   FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    Button(onClick={vm.openDialog("ticket","درخواست پشتیبانی جدید")},enabled=!s.posting,shape=SiteShape.Xl,colors=ButtonDefaults.buttonColors(containerColor=Palette.Navy950,contentColor=Palette.Brass300)){Icon(NativeIcons.Add,null,Modifier.size(16.dp));Spacer(Modifier.width(6.dp));Text("ثبت تیکت جدید")}
+    SoftButton(onClick={vm.navigate(Screen.TICKETS)}){Text("مشاهده همهٔ تیکت‌ها")}
+   }
+  }
  }
 } }
 @Composable fun HistoryScreen(s:AppUiState,vm:AppViewModel) {WorkspaceListDetail(s,vm,setOf("historyPreview"),list={wide->Page(onRefresh={vm.refresh()},refreshing=s.loading) {
