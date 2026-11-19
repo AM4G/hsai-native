@@ -119,6 +119,25 @@ class NativeUiTest {
  @Test @Config(qualifiers="w1024dp-h1366dp-mdpi") fun allScreensDarkTablet(){
   ready();Screen.entries.forEach{screen->state(fixture(screen,true));screenshot("dark1024-${screen.name.lowercase()}")}
  }
+ // ممیزی برابری با وب: پنجرهٔ «کارها» و تب‌های حساب در auditScreens نیستند؛ اینجا ثبت می‌شوند.
+ @Test fun worksPanelCapturedOnMobile() {
+  ready();state(fixture(Screen.CHAT));compose.runOnIdle{vm.openWorks()}
+  compose.onNodeWithText("همهٔ کارهای حقوقی، یک‌جا در چت").assertExists();screenshot("mobile390-works")
+ }
+ @Test @Config(qualifiers="w1024dp-h1366dp-mdpi") fun worksPanelCapturedOnTablet() {
+  ready();state(fixture(Screen.CHAT));compose.runOnIdle{vm.openWorks()}
+  compose.onNodeWithText("همهٔ کارهای حقوقی، یک‌جا در چت").assertExists();screenshot("tablet1024-works")
+ }
+ @Test @Config(qualifiers="w1024dp-h1366dp-mdpi") fun worksPanelCapturedDark() {
+  ready();state(fixture(Screen.CHAT,true));compose.runOnIdle{vm.openWorks()}
+  compose.onNodeWithText("همهٔ کارهای حقوقی، یک‌جا در چت").assertExists();screenshot("dark1024-works")
+ }
+ @Test fun accountTabsCaptured() {
+  ready();state(fixture(Screen.ACCOUNT))
+  listOf("امنیت و رمز عبور" to "security","اشتراک و مالی" to "billing","پشتیبانی و تیکت" to "support").forEach{(label,tag)->
+   compose.onNodeWithText(label).performScrollTo().performClick();screenshot("mobile390-account-$tag")
+  }
+ }
  @Test fun breakpointsFollowWindowNotDeviceName(){
   assertEquals(WorkspaceLayout.COMPACT,workspaceLayout(599f))
   assertEquals(WorkspaceLayout.RAIL,workspaceLayout(600f))
