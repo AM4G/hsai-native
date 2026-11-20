@@ -77,10 +77,10 @@ jobs:
       - name: Prepare Artifacts and Checksums
         run: |
           mkdir -p release-artifacts
-          cp app/build/outputs/apk/release/app-release.apk release-artifacts/hsai-v2.1.0-release.apk
-          cp app/build/outputs/apk/debug/app-debug.apk release-artifacts/hsai-v2.1.0-debug.apk
+          cp app/build/outputs/apk/release/app-release.apk release-artifacts/hsai-v2.2.0-release.apk
+          cp app/build/outputs/apk/debug/app-debug.apk release-artifacts/hsai-v2.2.0-debug.apk
           cd release-artifacts
-          sha256sum hsai-v2.1.0-release.apk hsai-v2.1.0-debug.apk > checksums.sha256
+          sha256sum hsai-v2.2.0-release.apk hsai-v2.2.0-debug.apk > checksums.sha256
           echo "### 🛡️ SHA-256 Checksums" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat checksums.sha256 >> $GITHUB_STEP_SUMMARY
@@ -91,10 +91,10 @@ jobs:
       - name: Upload APKs and Checksums as Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: hsai-native-v2.1.0-apks
+          name: hsai-native-v2.2.0-apks
           path: |
-            release-artifacts/hsai-v2.1.0-release.apk
-            release-artifacts/hsai-v2.1.0-debug.apk
+            release-artifacts/hsai-v2.2.0-release.apk
+            release-artifacts/hsai-v2.2.0-debug.apk
             release-artifacts/checksums.sha256
           if-no-files-found: error
 
@@ -107,7 +107,7 @@ jobs:
           elif [ -n "${{ inputs.custom_tag }}" ]; then
             TAG_NAME="${{ inputs.custom_tag }}"
           else
-            TAG_NAME="v2.1.0"
+            TAG_NAME="v2.2.0"
           fi
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
 
@@ -121,8 +121,8 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            release-artifacts/hsai-v2.1.0-release.apk
-            release-artifacts/hsai-v2.1.0-debug.apk
+            release-artifacts/hsai-v2.2.0-release.apk
+            release-artifacts/hsai-v2.2.0-debug.apk
             release-artifacts/checksums.sha256
           body: |
             ## ⚖️ انتشار رسمی نسخه اندروید بومی حق‌سنج (${{ steps.release_meta.outputs.tag_name }})
@@ -136,8 +136,8 @@ jobs:
             - **پوشاندن اطلاعات حساس مدارک (`Redaction.kt`)**: ابزار محلی خط‌زدن کد ملی و شماره حساب‌ها پیش از ارسال به سرور.
 
             ### 📦 بسته‌های نصبی و راستی‌آزمایی
-            - `hsai-v2.1.0-release.apk`: نسخه نهایی رسمی و امضاشده با کلید اصلی حق‌سنج (`hsai-key`)
-            - `hsai-v2.1.0-debug.apk`: نسخه آزمایشی جهت خطایابی و تست‌های توسعه
+            - `hsai-v2.2.0-release.apk`: نسخه نهایی رسمی و امضاشده با کلید اصلی حق‌سنج (`hsai-key`)
+            - `hsai-v2.2.0-debug.apk`: نسخه آزمایشی جهت خطایابی و تست‌های توسعه
             - `checksums.sha256`: مقادیر هش SHA-256 جهت اعتبارسنجی یکپارچگی فایل‌ها
 
             ${{ inputs.release_notes }}

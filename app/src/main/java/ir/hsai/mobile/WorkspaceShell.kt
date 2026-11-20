@@ -70,7 +70,7 @@ fun workspaceLayout(widthDp:Float):WorkspaceLayout = when {
          Box(Modifier.fillMaxWidth().height(1.5.dp).background(clayBarEdge()))
          TopAppBar(title={
           Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-           Text(if(s.screen==Screen.CHAT&&s.conversationId==null)"گفتگوی حقوقی جدید"else s.screen.title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,modifier=Modifier.semantics{heading()})
+           Text(if(s.screen==Screen.CHAT&&s.conversationId==null)"گفتگوی حقوقی جدید"else s.screen.title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,modifier=Modifier.weight(1f,fill=false).semantics{heading()})
            if(s.screen==Screen.CHAT&&s.online) {
             Surface(color=if(s.dark)Palette.OkSoftDark else Palette.OkSoftLight,shape=SiteShape.Chip) {
              Row(Modifier.padding(horizontal=7.dp,vertical=3.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {

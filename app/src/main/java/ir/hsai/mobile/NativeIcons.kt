@@ -31,6 +31,7 @@ val AttachFile=icon("AttachFile","m21 11-8 8a6 6 0 0 1-8.5-8.5L13 2a4 4 0 0 1 5.
 val Send=icon("Send","M22 2 9 15M22 2l-7 20-6-7-7-6z")
 val AutoAwesome=icon("AutoAwesome","M12 3l2.6 6.4L21 12l-6.4 2.6L12 21l-2.6-6.4L3 12l6.4-2.6L12 3z")
 val NorthWest=icon("NorthWest","M19 5 5 19M5 5h14v14")
+val ArrowLeft=icon("ArrowLeft","M19 12H5M12 19l-7-7 7-7")
 val ContentCopy=icon("ContentCopy","M9 9h12v12H9V9zM5 15H3V3h12v2")
 val Check=icon("Check","m5 12 4 4L19 6")
 // دور ۱۴: آیکون «بازتولید» — هم‌سبک با آیکون‌های خطی موجود

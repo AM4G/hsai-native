@@ -10,6 +10,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -44,10 +46,20 @@ import androidx.compose.ui.unit.*
      }
      TextButton(onClick=vm::browseAsGuest,enabled=!s.posting,shape=RoundedCornerShape(12.dp),colors=ButtonDefaults.textButtonColors(containerColor=Color.White.copy(alpha=.1f)),contentPadding=PaddingValues(8.dp)) {Text("بازگشت به چت",color=Palette.Slate300,style=MaterialTheme.typography.labelSmall)}
     }
+    // لایهٔ ۲۰۲۶ وب: بنر سبز «کار نمی‌ماند» بالای کارت وقتی پیام مهمان محفوظ است.
+    if(s.pendingGuestMessage)Surface(color=if(LocalSiteDark.current)Color(0x2934D399) else Color(0xFFE7F6F1),shape=SiteShape.Xxl,border=BorderStroke(1.dp,if(LocalSiteDark.current)Color(0x5934D399) else Color(0xFFA7D7C5))) {
+     Row(Modifier.fillMaxWidth().padding(12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+      Icon(NativeIcons.CheckCircle,null,Modifier.padding(top=2.dp).size(16.dp),tint=if(LocalSiteDark.current)Color(0xFF34D399) else Color(0xFF0F7A62))
+      Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)) {
+       Text("کار نمی‌ماند! تمام محفوظ است: همان کار از چت باز می‌شود",style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.Black,color=if(LocalSiteDark.current)Color(0xFFD1FAE5) else Color(0xFF065F46))
+       Text("فقط وارد شوید یا ثبت‌نام کنید؛ نیاز به شروع مجدد نخواهید داشت.",style=MaterialTheme.typography.labelSmall,color=if(LocalSiteDark.current)Color(0xFFA7F3D0) else Color(0xFF047857))
+      }
+     }
+    }
     Surface(Modifier.fillMaxWidth(),shape=SiteShape.Card,color=Soft.CardLight,border=BorderStroke(1.dp,Soft.BorderLight),shadowElevation=4.dp) {
      Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
       Text(if(mode=="register")"ایجاد حساب کاربری حق‌سنج"else "ورود به میز کار حق‌سنج",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Black)
-      if(!s.pendingGuestMessage)Text(if(s.config.optBoolean("free_trial_enabled",false))"با ورود یا عضویت، هدیه مشاوره رایگان شما بلافاصله فعال می‌شود."else "برای دسترسی به میز کار حقوقی و اسناد قضایی خود وارد شوید.",color=MaterialTheme.colorScheme.onSurfaceVariant,style=MaterialTheme.typography.bodySmall)
+      if(!s.pendingGuestMessage)Text("با ورود یا عضویت، هدیه مشاوره رایگان شما بلافاصله فعال می‌شود.",color=MaterialTheme.colorScheme.onSurfaceVariant,style=MaterialTheme.typography.bodySmall)
       if(s.pendingGuestMessage)Surface(color=MaterialTheme.colorScheme.secondaryContainer,shape=RoundedCornerShape(14.dp)) {
        Text("پیامت محفوظ است؛ برای دریافت پاسخ وارد شو.",Modifier.fillMaxWidth().padding(12.dp),color=MaterialTheme.colorScheme.onSecondaryContainer,style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Bold)
       }
@@ -69,10 +81,10 @@ import androidx.compose.ui.unit.*
        }
        if(mode!="otp")Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
         AuthTab("ورود با رمز عبور",mode=="login",Modifier.weight(1f),enabled=!s.posting){mode="login";vm.clearFormErrors()}
-        AuthTab("عضویت جدید",mode=="register",Modifier.weight(1f),enabled=!s.posting){mode="register";vm.clearFormErrors()}
+        AuthTab("عضویت جدید با ایمیل",mode=="register",Modifier.weight(1f),enabled=!s.posting){mode="register";vm.clearFormErrors()}
        }
        if(mode=="register")AuthField("نام و نام خانوادگی رسمی",name,{name=it},enabled=!s.posting,error=s.fieldErrors["full_name"],onEdited={vm.inputEdited("full_name")},firstError=s.firstField("full_name"),attempt=s.validationAttempt)
-       if(mode=="login")AuthField("آدرس ایمیل یا شماره موبایل",identifier,{identifier=it},placeholder="پست الکترونیک یا شماره موبایل",latin=true,enabled=!s.posting,error=s.fieldErrors["identifier"],onEdited={vm.inputEdited("identifier")},firstError=s.firstField("identifier"),attempt=s.validationAttempt)
+       if(mode=="login")AuthField("آدرس ایمیل یا شماره موبایل",identifier,{identifier=it},placeholder="you@example.com / 09121234567",latin=true,enabled=!s.posting,error=s.fieldErrors["identifier"],onEdited={vm.inputEdited("identifier")},firstError=s.firstField("identifier"),attempt=s.validationAttempt)
        else AuthField("شماره موبایل",phone,{phone=it},placeholder="۰۹۱۲۳۴۵۶۷۸۹",numeric=true,latin=true,enabled=!s.posting,error=s.fieldErrors["phone"],onEdited={vm.inputEdited("phone")},firstError=s.firstField("phone"),attempt=s.validationAttempt)
        if(mode=="register")AuthField("نشانی ایمیل (اختیاری)",email,{email=it},latin=true,enabled=!s.posting,error=s.fieldErrors["email"],onEdited={vm.inputEdited("email")},firstError=s.firstField("email"),attempt=s.validationAttempt)
        if(mode!="otp") {
@@ -86,9 +98,13 @@ import androidx.compose.ui.unit.*
         if(mode=="register")PasswordStrength(password)
        }
        ErrorNotice(s)
-       Button(onClick=submit,enabled=s.initialized&&!s.posting,modifier=Modifier.fillMaxWidth().heightIn(min=50.dp),shape=SiteShape.Xl,colors=ButtonDefaults.buttonColors(containerColor=Palette.Navy950,contentColor=Palette.Brass300,disabledContainerColor=Soft.WellLight,disabledContentColor=Palette.Slate500)) {
-        if(s.posting||!s.initialized){CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp,color=MaterialTheme.colorScheme.onPrimary);Spacer(Modifier.width(8.dp))}
-        Text(if(mode=="otp")"دریافت کد ورود"else if(mode=="register")"عضویت و شروع مشاوره"else "ورود به حساب کاربری",fontWeight=FontWeight.Bold)
+       Box(Modifier.fillMaxWidth()) {
+        Button(onClick=submit,enabled=s.initialized&&!s.posting,modifier=Modifier.fillMaxWidth().heightIn(min=50.dp),shape=SiteShape.Xl,colors=ButtonDefaults.buttonColors(containerColor=Palette.Navy950,contentColor=Palette.Brass300,disabledContainerColor=Soft.WellLight,disabledContentColor=Palette.Slate500)) {
+         if(s.posting||!s.initialized){CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp,color=MaterialTheme.colorScheme.onPrimary);Spacer(Modifier.width(8.dp))}
+         Text(if(mode=="otp")"دریافت کد ورود"else if(mode=="register")"عضویت و شروع مشاوره"else "ورود به حساب کاربری",fontWeight=FontWeight.Bold)
+        }
+        // هایلایت براق بالای دکمه، مثل soft-btn-primary سایت (inset 0 1px white).
+        Box(Modifier.matchParentSize().clip(SiteShape.Xl).background(Brush.verticalGradient(listOf(Color.White.copy(alpha=.10f),Color.Transparent))))
        }
        /**
         * ورود با گوگل — قبلاً این دکمه عمداً نبود چون قرارداد بومی وجود نداشت.
@@ -96,26 +112,31 @@ import androidx.compose.ui.unit.*
         * (POST /api/v1/auth/google/handoff). جریان در مرورگر امن انجام می‌شود.
         */
        if(ApiContract.googleAppSignInEnabled(s.config)) {
-        // سایت دکمهٔ گوگل را با نشان چهاررنگ رسمی می‌دهد (AuthPage.GoogleIcon)، نه دکمهٔ متنی خالی.
-        SoftButton(onClick={vm.startGoogleSignIn()},enabled=!s.posting,modifier=Modifier.fillMaxWidth()){Image(NativeIcons.GoogleMark,null,Modifier.size(20.dp));Spacer(Modifier.width(8.dp));Text("ورود با حساب گوگل",fontWeight=FontWeight.Bold)}
-        // کادر هشدار سایت: p-3 rounded-2xl bg-amber-50 border-amber-200 text-amber-900 + AlertCircle amber-700
-        Surface(color=Color(0xFFFFFBEB),shape=SiteShape.Xxl,border=BorderStroke(1.dp,Color(0xFFFDE68A))) {
-         Row(Modifier.fillMaxWidth().padding(12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-          Icon(NativeIcons.AlertCircle,null,Modifier.padding(top=2.dp).size(16.dp),tint=Color(0xFFB45309))
-          Text("ورود با گوگل در مرورگر امن گوشی انجام می‌شود و پس از تأیید، خودکار به اپ برمی‌گردید.",Modifier.weight(1f),style=MaterialTheme.typography.labelSmall,fontWeight=FontWeight.Bold,color=Color(0xFF78350F),lineHeight=24.sp)
-         }
+        // سایت: جداکنندهٔ «یا ورود سریع با گوگل» + دکمهٔ سفید با نشان چهاررنگ + متن راهنمای خاکستری.
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+         HorizontalDivider(Modifier.weight(1f),color=Soft.HairlineLight)
+         Text("یا ورود سریع با گوگل",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+         HorizontalDivider(Modifier.weight(1f),color=Soft.HairlineLight)
         }
+        SoftButton(onClick={vm.startGoogleSignIn()},enabled=!s.posting,modifier=Modifier.fillMaxWidth()){Image(NativeIcons.GoogleMark,null,Modifier.size(20.dp));Spacer(Modifier.width(8.dp));Text("ورود با حساب گوگل (Google OAuth 2.0)",fontWeight=FontWeight.Bold)}
+        Text("احراز هویت استاندارد با پروتکل امن OAuth 2.0 — بدون دسترسی به رمز شما",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth())
        }
        // فرم تماس عمومی سایت: برای کسی که هنوز حساب ندارد هم باز است.
        TextButton(onClick={vm.openDialog("contact","تماس با پشتیبانی")},enabled=!s.posting){Text("پیام به پشتیبانی (بدون حساب)",color=Copper,style=MaterialTheme.typography.labelMedium)}
       }
       Text(buildAnnotatedString {
        append("ورود شما به معنای پذیرش ")
-       withLink(LinkAnnotation.Url("https://hsai.ir/terms")){append("قوانین استفاده")}
+       withLink(LinkAnnotation.Url("https://hsai.ir/terms")){append("شرایط استفاده")}
        append(" و ")
-       withLink(LinkAnnotation.Url("https://hsai.ir/privacy")){append("سیاست حریم خصوصی حق‌سنج")}
+       withLink(LinkAnnotation.Url("https://hsai.ir/privacy")){append("حریم خصوصی حق‌سنج")}
        append(" است.")
       },style=MaterialTheme.typography.bodySmall,textAlign=TextAlign.Center,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      // فوتر اعتماد سایت: سپر سبز + رمزنگاری سرتاسری ۲۵۶ بیتی.
+      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {
+       Icon(NativeIcons.ShieldCheck,null,Modifier.size(13.dp),tint=Color(0xFF0F7A62))
+       Spacer(Modifier.width(5.dp))
+       Text("محرمانگی کامل اسناد و داده‌ها با رمزنگاری سرتاسری ۲۵۶ بیتی",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      }
 
      }
     }

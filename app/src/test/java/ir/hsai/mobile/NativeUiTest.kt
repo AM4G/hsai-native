@@ -89,7 +89,7 @@ class NativeUiTest {
   compose.onAllNodesWithText("رمز عبور را وارد کنید.").onFirst().assertExists()
  }
  @Test fun registerUsesRealNativeFields() {
-  ready();compose.onNodeWithText("عضویت جدید",substring=false).performClick()
+  ready();compose.onNodeWithText("عضویت جدید با ایمیل",substring=false).performClick()
   compose.onNodeWithContentDescription("نام و نام خانوادگی رسمی").assertExists()
   compose.onNodeWithContentDescription("شماره موبایل").assertExists()
  }
@@ -463,11 +463,12 @@ data: {"answer":"متن پاسخ","conversation_id":42,"message_id":77,"subscrip
 
  }
 
- @Test fun cleanupAllTopicsRemainAvailableBehindDisclosure() {
+ @Test fun allSixTopicsVisibleWithoutDisclosure() {
   ready(login=false)
-  compose.onNodeWithText("ارث و میراث خانوادگی").assertDoesNotExist()
-  compose.onNodeWithText("موضوع‌های بیشتر").performScrollTo().performClick()
-  compose.onNodeWithText("ارث و میراث خانوادگی").assertExists()
+  // لایهٔ ۲۰۲۶ وب: هر ۶ موضوع از ابتدا به‌صورت چیپ فشرده در دسترس است.
+  compose.onNodeWithText("ارث و میراث خانوادگی").performScrollTo().assertExists()
+  compose.onNodeWithText("اینترنت، کلاهبرداری و جرم").performScrollTo().assertExists()
+  compose.onNodeWithText("موضوع‌های بیشتر").assertDoesNotExist()
  }
  @Test fun cleanupAccountDoesNotExposeTechnicalApiOrAdminPromotion() {
   ready();state(fixture(Screen.ACCOUNT).copy(user=JSONObject().put("full_name","نمونه").put("role","admin")))
@@ -481,7 +482,7 @@ data: {"answer":"متن پاسخ","conversation_id":42,"message_id":77,"subscrip
 
  @Test fun auditGoogleLoginIsAbsentInLoginAndRegistration(){
   ready();compose.onNodeWithText("ورود با حساب گوگل در وب‌سایت").assertDoesNotExist();compose.onNodeWithText("ورود گوگل در مرورگر انجام می‌شود و به اپ منتقل نمی‌شود.").assertDoesNotExist()
-  compose.onNodeWithText("عضویت جدید",substring=false).performClick();compose.onNodeWithText("ورود با حساب گوگل در وب‌سایت").assertDoesNotExist()
+  compose.onNodeWithText("عضویت جدید با ایمیل",substring=false).performClick();compose.onNodeWithText("ورود با حساب گوگل در وب‌سایت").assertDoesNotExist()
  }
  @Test fun auditRichOnlyResponseNeverPretendsToStillBeLoading(){
   ready();val message=ChatMessage("assistant","",document=JSONObject().put("title","برگه بدون متن چت").put("content","متن پیش‌نویس"))

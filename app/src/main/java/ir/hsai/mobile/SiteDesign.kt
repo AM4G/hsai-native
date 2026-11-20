@@ -51,6 +51,47 @@ object SiteDesign {
 }
 
 /**
+ * نشان هیروی چت — لایهٔ ۲۰۲۶ وب: نشان طلایی داخل کاشی سرمه‌ای گرد با هالهٔ نور برنجی
+ * (`.hs-hero:before` radial-gradient rgba(200,152,74,.3)).
+ */
+@Composable fun BrandEmblemTile(emblem:Dp=48.dp,modifier:Modifier=Modifier) {
+ val tile=emblem*1.5f
+ Box(modifier.size(tile*1.9f),contentAlignment=Alignment.Center) {
+  Box(Modifier.matchParentSize().background(Brush.radialGradient(listOf(Palette.Brass400.copy(alpha=.24f),Color.Transparent))))
+  Surface(shape=RoundedCornerShape(tile*.26f),color=Palette.Navy950,
+   border=BorderStroke(1.dp,Palette.Brass400.copy(alpha=.4f)),shadowElevation=8.dp) {
+   BrandEmblem(emblem,modifier=Modifier.padding((tile-emblem)/2))
+  }
+ }
+}
+
+/** کاغذ چت (`.hs-chat` روی `--hs-paper`): روشن #f8f7f4، تیره #07101b. */
+@Composable fun chatPaper():Color=if(LocalSiteDark.current)Color(0xFF07101B) else Color(0xFFF8F7F4)
+
+/** هاله‌های پس‌زمینهٔ چت: برنجی بالا-راست rgba(206,159,88,.1) + سبز پایین-چپ rgba(15,122,98,.08). */
+@Composable fun ChatAura(modifier:Modifier=Modifier) {
+ Canvas(modifier.clipToBounds()) {
+  val c1=Offset(size.width*.9f,-size.height*.1f)
+  drawCircle(Brush.radialGradient(listOf(Color(0x1ACE9F58),Color.Transparent),c1,size.width*.9f),size.width*.9f,c1)
+  val c2=Offset(-size.width*.1f,size.height*1.1f)
+  drawCircle(Brush.radialGradient(listOf(Color(0x140F7A62),Color.Transparent),c2,size.width*.8f),size.width*.8f,c2)
+ }
+}
+
+/**
+ * شبکهٔ نقطه‌ای ناحیهٔ اسکرول چت (`.hs-chat__scroll`):
+ * radial-gradient(rgba(11,26,38,.055) 1px,transparent 1px) با گام 22px؛ تیره: rgba(255,255,255,.05).
+ */
+@Composable fun ChatDotGrid(modifier:Modifier=Modifier) {
+ val dot=if(LocalSiteDark.current)Color(0x0DFFFFFF) else Color(0x0E0B1A26)
+ Canvas(modifier.clipToBounds()) {
+  val step=22.dp.toPx();val r=1.dp.toPx()
+  var y=step/2
+  while(y<size.height){var x=step/2;while(x<size.width){drawCircle(dot,r,Offset(x,y));x+=step};y+=step}
+ }
+}
+
+/**
  * «قفل‌نشانه»ٔ سایت (BrandMark.jsx): نشان + واژهٔ «حق‌سنج» + شعار.
  * سایز lg = نشان ۴۸dp و عنوان headline، sm = نشان ۳۲dp و عنوان labelLarge.
  */

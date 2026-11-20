@@ -20,9 +20,9 @@ NAVY = {50:'F0F5F8',100:'D9E6EE',200:'B6CFDF',300:'85AFC8',400:'5088AB',500:'336
 BRASS = {50:'FBF8F1',100:'F5EEDC',200:'EAD9B5',300:'DCBE86',400:'CE9F58',500:'C38839',
          600:'B36F2E',700:'955628',800:'794526',900:'633A22'}
 
-# --- مرجع: src/index.css (--soft-*)
+# --- مرجع: CSS لایو سایت (لایهٔ ۲۰۲۶: --hs-paper/--hs-card/--hs-card-2/--hs-well تیره)
 SOFT_LIGHT = {'BgLight':'F4F2EC','CardLight':'FBF9F5','Card2Light':'F7F4EE','WellLight':'EFECE4'}
-SOFT_DARK  = {'BgDark':'0B1B28','CardDark':'12293A','Card2Dark':'0F2334','WellDark':'0A1825'}
+SOFT_DARK  = {'BgDark':'07101B','CardDark':'0B1728','Card2Dark':'102138','WellDark':'060D17'}
 
 # --- مرجع: کلاس‌های کامپوننت سایت (لایه ۲۰۲۶ hsai-2026.css)
 BUBBLE_USER = [('14384B'), ('0B2231'), ('0A1B26')]      # .soft-bubble-user (2026 layer)
@@ -121,11 +121,11 @@ ok('chip.no_m3_suggestion', 'SuggestionChip(onClick={vm.setDraft' not in screens
 # ۷-۴ کارت‌ها: soft-card و hsai-glass هر دو
 ok('card.glass_variant', 'glass:Boolean=false,pad:Int=18,radiusDp:Int=24' in theme)
 # دور یازدهم: چیدمان کارت موضوعی به لامبدای مشترک (topicCard) منتقل شد تا ردیف ناقص
-# تمام‌عرض شود و height(IntrinsicSize.Min)+fillMaxHeight حذف گردد. قاعده همان است:
-# کارت موضوع = hsai-glass با pad=14/radius=16 و برچسب کلیک = عنوان موضوع.
+# تمام‌عرض شود و height(IntrinsicSize.Min)+fillMaxHeight حذف گردد.
+# لایهٔ ۲۰۲۶ وب: موضوع‌ها چیپ فشردهٔ hsai-glass هستند (pad=10، حد لمسی ۴۸dp).
 ok('card.topic_is_hsai_glass', 'clickable(onClickLabel=title)' in screens
-   and 'glass=true,pad=14,radiusDp=16' in screens
-   and 'heightIn(min=88.dp)' in screens)
+   and 'glass=true,pad=10,radiusDp=16' in screens
+   and 'heightIn(min=48.dp)' in screens)
 
 # دور یازدهم: ردیف ناقص نباید کارت «یتیم» بسازد (هم در کارت‌های موضوعی، هم در AdaptiveCards)
 ok('cards.no_orphan_row', 'if(row.size==1&&columns>1) render(row[0],Modifier.fillMaxWidth())' in shell
@@ -196,6 +196,28 @@ ok('input.focus_brass', 'focusedBorderColor=Palette.Brass400' in screens)
 ok('input.weight_rule', 'fontWeight=if(multiline)FontWeight.Normal else FontWeight.Bold' in screens)
 ok('input.login_white', 'unfocusedContainerColor=Color.White' in login)
 ok('input.no_false_well_claim', '«چاه» فرورفته (.soft-well)' not in screens)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ۸) لایهٔ ۲۰۲۶ وب — ممیزی برابری چت/کارها/ورود/تعرفه با CSS لایو hsai.ir
+# ─────────────────────────────────────────────────────────────────────────────
+works = open(os.path.join(src, 'WorksPanel.kt'), encoding='utf-8').read()
+ok('chat.dot_grid', 'fun ChatDotGrid(' in design and 'ChatDotGrid(Modifier.matchParentSize())' in screens)
+ok('chat.paper_2026', 'fun chatPaper():Color=if(LocalSiteDark.current)Color(0xFF07101B) else Color(0xFFF8F7F4)' in design)
+ok('chat.hero_tile', 'fun BrandEmblemTile(' in design and 'BrandEmblemTile(48.dp)' in screens)
+ok('chat.guest_badge_default', 'if(!s.authenticated) {' in screens and 'else 2' in screens)
+ok('chat.send_label', 'Text("ارسال",style=MaterialTheme.typography.labelLarge' in screens)
+ok('chat.trust_shield', 'مستند به قوانین رسمی ایران' in screens and 'NativeIcons.ShieldCheck' in screens)
+ok('works.search', 'جست‌وجوی سریع کارها' in works)
+ok('works.badges', all(b in works for b in ('تشخیص مهلت', 'سپر امنیتی', 'ثنا / A4', 'دادسرا', 'اخطار رسمی')))
+ok('works.category_counts', 'fun CategoryHeader(' in works and 'قابلیت"' in works)
+ok('works.tabs', '"works" to "کارها", "tickets" to "تیکت پشتیبانی"' in works)
+ok('works.arrow_left', 'NativeIcons.ArrowLeft' in works)
+ok('login.green_banner', 'کار نمی‌ماند! تمام محفوظ است' in login)
+ok('login.register_tab', 'عضویت جدید با ایمیل' in login)
+ok('login.encryption_footer', 'رمزنگاری سرتاسری ۲۵۶ بیتی' in login)
+ok('plans.guarantee_banner', '۷ روز ضمانت بازگشت وجه' in screens)
+ok('plans.yearly_discount', 'طرح‌های سالانه (۲۰٪ تخفیف ویژه)' in screens)
+ok('topbar.title_weight', 'Modifier.weight(1f,fill=false).semantics{heading()}' in shell)
 
 print(f'{checks - len(fails)}/{checks} parity checks passed')
 for f in fails:

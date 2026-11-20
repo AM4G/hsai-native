@@ -248,8 +248,11 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
   withTimeoutOrNull(2000){list.animateScrollToItem((list.layoutInfo.totalItemsCount-1).coerceAtLeast(0))}
  }
  val scope=rememberCoroutineScope()
- Column(Modifier.fillMaxSize().imePadding(),horizontalAlignment=Alignment.CenterHorizontally) {
+ // لایهٔ ۲۰۲۶ وب: کاغذ چت (--hs-paper) + هاله‌های برنجی/سبز + شبکهٔ نقطه‌ای 22px روی ناحیهٔ اسکرول.
+ Column(Modifier.fillMaxSize().imePadding().background(chatPaper()),horizontalAlignment=Alignment.CenterHorizontally) {
  Box(Modifier.weight(1f).widthIn(max=1000.dp).fillMaxWidth()) {
+ ChatAura(Modifier.matchParentSize())
+ ChatDotGrid(Modifier.matchParentSize())
  LazyColumn(state=list,modifier=Modifier.fillMaxSize(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
   if(s.messages.isEmpty())item {HomeContent(s,vm)}
   itemsIndexed(s.messages){index,m->MessageCard(m,s.posting,vm,index==s.messages.lastIndex)}
@@ -309,25 +312,38 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
    OutlinedTextField(value=s.draft,onValueChange=vm::setDraft,placeholder={Text("ماجرا را ساده بنویسید…",style=MaterialTheme.typography.bodySmall)},modifier=Modifier.fillMaxWidth(),maxLines=5,shape=SiteShape.Xxl,colors=OutlinedTextFieldDefaults.colors(unfocusedBorderColor=if(s.dark)Color(0x1AFFFFFF) else Palette.Slate300,focusedBorderColor=Palette.Brass400,unfocusedContainerColor=if(s.dark)Color(0xFF10263A) else Color.White,focusedContainerColor=if(s.dark)Color(0xFF10263A) else Color.White,cursorColor=Palette.Brass500,unfocusedTextColor=Soft.ink(),focusedTextColor=Soft.ink()))
    if(s.draftTruncated)Text("حداکثر "+fa(UiPresentation.DRAFT_LIMIT)+" نویسه پذیرفته می‌شود؛ ادامهٔ متن ذخیره نشد.",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.error)
   }
-  // لایهٔ ۲۰۲۶: دکمهٔ ارسال برنزی با متن سرمه‌ای (مثل `.hs-composer__send` در وب)
-  FilledIconButton(onClick={vm.sendChat()},enabled=!s.posting&&(s.draft.isNotBlank()||s.image!=null),modifier=Modifier.size(46.dp),colors=IconButtonDefaults.filledIconButtonColors(containerColor=Palette.Brass400,contentColor=Palette.Navy950,disabledContainerColor=MaterialTheme.colorScheme.onSurface.copy(alpha=.06f),disabledContentColor=MaterialTheme.colorScheme.onSurface.copy(alpha=.38f))){Icon(NativeIcons.Send,"ارسال پیام")}
+  // لایهٔ ۲۰۲۶ وب (`.hs-composer__send`): دکمهٔ ارسال مربع‌گرد برنجی با برچسب «ارسال»؛
+  // حالت غیرفعال سطح چاه + جوهر کم‌رنگ‌تر ولی خوانا (کنتراست دارک اصلاح شد).
+  val canSend=!s.posting&&(s.draft.isNotBlank()||s.image!=null)
+  Button(onClick={vm.sendChat()},enabled=canSend,modifier=Modifier.heightIn(min=46.dp),shape=RoundedCornerShape(14.dp),
+   colors=ButtonDefaults.buttonColors(containerColor=Palette.Brass400,contentColor=Palette.Navy950,disabledContainerColor=Soft.well(),disabledContentColor=Soft.inkMuted()),
+   border=BorderStroke(1.dp,if(canSend)Palette.Brass500.copy(alpha=.5f) else Soft.border()),
+   contentPadding=PaddingValues(horizontal=12.dp,vertical=10.dp)) {
+   Icon(NativeIcons.Send,"ارسال پیام",Modifier.size(18.dp))
+   if(canSend){Spacer(Modifier.width(6.dp));Text("ارسال",style=MaterialTheme.typography.labelLarge,fontWeight=FontWeight.Black)}
+  }
   }
   }
   if(s.posting&&s.stage.isNotBlank())TextButton(onClick=vm::stopChat){Text("توقف دریافت پاسخ")}
-  // FIX(chat-parity): کلید «جریانی» یک انتخاب فنی بود که وب‌سایت به کاربر نشان نمی‌دهد؛
-  // پاسخ در سایت همیشه جریانی است. کلید حذف شد و فقط یادداشت حقوقی سایت ماند.
-  Text("پاسخ مستند؛ جایگزین وکالت در جلسه دادگاه نیست.",Modifier.fillMaxWidth(),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,textAlign=TextAlign.Center)
+  // کپشن اعتماد وب: سپر سبز + «مستند به قوانین رسمی ایران»؛ یادداشت حقوقی اپ هم حفظ شد.
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically) {
+   Icon(NativeIcons.ShieldCheck,null,Modifier.size(13.dp),tint=if(LocalSiteDark.current)Color(0xFF34D399) else Color(0xFF0F7A62))
+   Spacer(Modifier.width(5.dp))
+   Text("مستند به قوانین رسمی ایران؛ پاسخ جایگزین وکالت در دادگاه نیست.",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  }
  } }
  }
 }
 @Composable fun HomeContent(s:AppUiState,vm:AppViewModel) {
  Column(verticalArrangement=Arrangement.spacedBy(20.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-  BrandEmblem(56.dp)
+  BrandEmblemTile(48.dp)
   Text("مسئلهٔ حقوقی‌تان را ساده بگویید",modifier=Modifier.widthIn(max=720.dp),style=MaterialTheme.typography.titleLarge.copy(lineHeight=32.sp),fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
   Text("در چند خط بنویسید چه اتفاقی افتاده؛ مسیر قانونی، مدارک لازم و قدم بعدی را روشن می‌کنم.",modifier=Modifier.widthIn(max=760.dp),color=MaterialTheme.colorScheme.onSurfaceVariant,textAlign=TextAlign.Center,style=MaterialTheme.typography.bodyMedium)
 
-  if(!s.authenticated&&s.guestQuota.length()>0) {
-   val remaining=s.guestQuota.optInt("remaining",2)
+  // لایهٔ ۲۰۲۶ وب: بج مهمان از ابتدا با سهمیهٔ پیش‌فرض (۲ پیام) نمایش داده می‌شود،
+  // نه فقط پس از رسیدن پاسخ سهمیه از سرور.
+  if(!s.authenticated) {
+   val remaining=if(s.guestQuota.length()>0)s.guestQuota.optInt("remaining",2) else 2
    Surface(color=if(LocalSiteDark.current)Palette.Brass400.copy(alpha=.12f) else Palette.Amber50,border=BorderStroke(1.dp,Palette.Brass300.copy(alpha=.7f)),shape=SiteShape.Chip) {
     Row(Modifier.padding(horizontal=12.dp,vertical=5.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
      Icon(NativeIcons.AutoAwesome,null,Modifier.size(14.dp),tint=if(LocalSiteDark.current)Palette.Brass300 else Palette.Brass800)
@@ -336,23 +352,6 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
    }
   }
 
-  // دو کپسول اقدام مستقیم همانند ChatAgentPage.jsx
-  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp,Alignment.CenterHorizontally)) {
-   Surface(onClick={vm.navigate(Screen.SCANNER)},modifier=Modifier.semantics{contentDescription="عکس ابلاغیه ثنا، پیامک دادگاه یا قرارداد را بفرستید"},shape=SiteShape.Chip,color=Palette.Navy950,contentColor=Palette.Brass300,border=BorderStroke(1.dp,Palette.Brass400.copy(alpha=.45f))) {
-    Row(Modifier.heightIn(min=44.dp).padding(horizontal=14.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-     Icon(NativeIcons.PhotoCamera,"عکس ابلاغیه یا قرارداد دارم",Modifier.size(16.dp),tint=Palette.Brass300)
-     Text("عکس ابلاغیه یا قرارداد دارم",style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.ExtraBold)
-    }
-   }
-   Surface(onClick={vm.setDraft("می‌خواهم برایم یک برگه رسمی شکایت، دادخواست یا اظهارنامه تنظیم کنی")},shape=SiteShape.Chip,color=if(LocalSiteDark.current)Palette.Brass400.copy(alpha=.15f) else Palette.Amber50,contentColor=if(LocalSiteDark.current)Palette.Brass300 else Palette.Navy950,border=BorderStroke(1.dp,Palette.Brass300)) {
-    Row(Modifier.heightIn(min=44.dp).padding(horizontal=14.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-     Icon(NativeIcons.FileSignature,null,Modifier.size(16.dp),tint=if(LocalSiteDark.current)Palette.Brass300 else Palette.Brass700)
-     Text("تنظیم برگه شکایت",style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.ExtraBold)
-    }
-   }
-  }
-
-  var moreTopics by rememberSaveable{mutableStateOf(false)}
   // همان ترتیب و همان آیکون‌های LIFE_SITUATION_CARDS در ChatAgentPage.jsx:
   // Wallet · Home · Heart · Briefcase · AlertTriangle · Users
   val topics=listOf(
@@ -372,43 +371,45 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
    "انحصار وراثت و تقسیم ارث بعد از فوت" to "یکی از بستگان درجه یک فوت کرده است؛ مراحل گرفتن گواهی انحصار وراثت و تقسیم سهم‌الارث به زبان ساده چیست؟"
   )
 
+  // لایهٔ ۲۰۲۶ وب: هر ۶ موضوع به‌صورت چیپ فشرده (آیکون + برچسب کوتاه) بدون جملهٔ مثال
+  // و بدون دکمهٔ «موضوع‌های بیشتر»؛ همه از ابتدا در دسترس‌اند.
   BoxWithConstraints(Modifier.fillMaxWidth()) {
    val scale=androidx.compose.ui.platform.LocalDensity.current.fontScale
-   val columns=if(maxWidth>=900.dp&&scale<1.3f)3 else if(maxWidth>=600.dp&&scale<1.4f)2 else 1
-   // FIX(ui): با ۳ کارت در چیدمان دوستونی، ردیف دوم تک‌کارت و نیم‌خالی می‌ماند.
-   // تعداد نمایش‌داده‌شده به مضرب ستون‌ها گرد می‌شود تا ردیف ناقص نداشته باشیم.
-   val shownCount=if(moreTopics)topics.size else when(columns){1->3;2->4;else->3}
-   val visible=topics.take(shownCount)
-   // FIX(ui): height(IntrinsicSize.Min)+fillMaxHeight در فهرست اسکرولی، اندازه‌گیری دوگانه می‌داد و
-   // کارت‌ها گاهی نیمه/جابه‌جا رندر می‌شدند. کارت‌ها حالا با heightIn(min=88dp) هم‌قد و پایدارند.
+   val columns=if(maxWidth>=900.dp&&scale<1.3f)3 else 2
    val topicCard:@Composable (Triple<String,String,androidx.compose.ui.graphics.vector.ImageVector>, Modifier)->Unit = { topic, modifier ->
-    val (badge,title,topicIcon)=topic
-    // سایت: <button class="hsai-glass p-3.5 rounded-2xl …"> با آیکون ۱۴dp + برچسب برنجی ۱۱px
-    // و متن اصلی font-black navy-950 / slate-50. پس کارت اینجا hsai-glass است، نه soft-card.
-    GlassCard(modifier=modifier.heightIn(min=88.dp).clickable(onClickLabel=title){
-     topicPrompts[title]?.let{vm.setDraft(it)}
-     vm.chooseTopic(title)
-    },glass=true,pad=14,radiusDp=16,spacing=6) {
-     // FIX(ui): عرض ردیف محدود نبود و برچسب بلند از لبهٔ کارت بیرون می‌زد/بریده می‌شد.
-     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-      Icon(topicIcon,null,Modifier.size(14.dp),tint=if(LocalSiteDark.current)Palette.Brass300 else Palette.Brass700)
-      Text(badge,Modifier.weight(1f),style=MaterialTheme.typography.labelSmall,color=if(LocalSiteDark.current)Palette.Brass300 else Palette.Brass700,fontWeight=FontWeight.ExtraBold)
+    val (title,sentence,topicIcon)=topic
+    GlassCard(modifier=modifier.heightIn(min=48.dp).clickable(onClickLabel=title){
+     topicPrompts[sentence]?.let{vm.setDraft(it)}
+     vm.chooseTopic(sentence)
+    },glass=true,pad=10,radiusDp=16,spacing=0) {
+     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+      Icon(topicIcon,null,Modifier.size(16.dp),tint=if(LocalSiteDark.current)Palette.Brass300 else Palette.Brass700)
+      Text(title,Modifier.weight(1f),style=MaterialTheme.typography.labelMedium,color=if(LocalSiteDark.current)Palette.Slate50 else Palette.Navy950,fontWeight=FontWeight.ExtraBold,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
      }
-     Text(title,Modifier.fillMaxWidth(),style=MaterialTheme.typography.bodyMedium,color=if(LocalSiteDark.current)Palette.Slate50 else Palette.Navy950,fontWeight=FontWeight.Black)
     }
    }
-   Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
-    visible.chunked(columns).forEach { row->
+   Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+    topics.chunked(columns).forEach { row->
      if(row.size==1) topicCard(row[0],Modifier.fillMaxWidth())
-     else Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) { row.forEach { topicCard(it,Modifier.weight(1f)) } }
+     else Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) { row.forEach { topicCard(it,Modifier.weight(1f)) } }
     }
    }
   }
-  TextButton(onClick={moreTopics=!moreTopics}){Text(if(moreTopics)"موضوع‌های کمتر"else "موضوع‌های بیشتر")}
-  // دور ۳۲: مهلت‌ها، قوانین و محاسبه‌گرها از ناوبری حذف شدند، ولی باید یک ضربه دور باشند.
-  TextButton(onClick={vm.openWorks()},modifier=Modifier.semantics{contentDescription="کارهای دیگر: مهلت‌ها، بانک قوانین، محاسبه‌گرها"}) {
-   Icon(NativeIcons.Briefcase,null,Modifier.size(16.dp));Spacer(Modifier.width(6.dp))
-   Text("کارهای دیگر: مهلت‌ها، قوانین، محاسبه‌گر")
+
+  // دو کپسول اقدام مستقیم همانند ChatAgentPage.jsx — مانند وب، پایینِ چیپ‌های موضوع.
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp,Alignment.CenterHorizontally)) {
+   Surface(onClick={vm.navigate(Screen.SCANNER)},modifier=Modifier.semantics{contentDescription="عکس ابلاغیه ثنا، پیامک دادگاه یا قرارداد را بفرستید"},shape=SiteShape.Chip,color=Palette.Navy950,contentColor=Palette.Brass300,border=BorderStroke(1.dp,Palette.Brass400.copy(alpha=.45f))) {
+    Row(Modifier.heightIn(min=44.dp).padding(horizontal=14.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+     Icon(NativeIcons.PhotoCamera,"عکس ابلاغیه یا قرارداد دارم",Modifier.size(16.dp),tint=Palette.Brass300)
+     Text("عکس ابلاغیه یا قرارداد دارم",style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.ExtraBold)
+    }
+   }
+   Surface(onClick={vm.setDraft("می‌خواهم برایم یک برگه رسمی شکایت، دادخواست یا اظهارنامه تنظیم کنی")},shape=SiteShape.Chip,color=if(LocalSiteDark.current)Palette.Brass400.copy(alpha=.15f) else Palette.Amber50,contentColor=if(LocalSiteDark.current)Palette.Brass300 else Palette.Navy950,border=BorderStroke(1.dp,Palette.Brass300)) {
+    Row(Modifier.heightIn(min=44.dp).padding(horizontal=14.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+     Icon(NativeIcons.FileSignature,null,Modifier.size(16.dp),tint=if(LocalSiteDark.current)Palette.Brass300 else Palette.Brass700)
+     Text("تنظیم برگه شکایت",style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.ExtraBold)
+    }
+   }
   }
  }
 }
@@ -531,10 +532,10 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
  }
  var tab by rememberSaveable{mutableStateOf("profile")}
  FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-  FilterChip(selected=tab=="profile",onClick={tab="profile"},label={Text("پروفایل و هویت")},colors=FilterChipDefaults.filterChipColors(containerColor=Soft.card(),labelColor=Soft.inkMuted(),selectedContainerColor=Palette.Brass100,selectedLabelColor=Palette.Brass900))
-  FilterChip(selected=tab=="security",onClick={tab="security"},label={Text("امنیت و رمز عبور")},colors=FilterChipDefaults.filterChipColors(containerColor=Soft.card(),labelColor=Soft.inkMuted(),selectedContainerColor=Palette.Brass100,selectedLabelColor=Palette.Brass900))
-  FilterChip(selected=tab=="billing",onClick={tab="billing"},label={Text("اشتراک و مالی")},colors=FilterChipDefaults.filterChipColors(containerColor=Soft.card(),labelColor=Soft.inkMuted(),selectedContainerColor=Palette.Brass100,selectedLabelColor=Palette.Brass900))
-  FilterChip(selected=tab=="support",onClick={tab="support"},label={Text("پشتیبانی و تیکت")},colors=FilterChipDefaults.filterChipColors(containerColor=Soft.card(),labelColor=Soft.inkMuted(),selectedContainerColor=Palette.Brass100,selectedLabelColor=Palette.Brass900))
+  FilterChip(selected=tab=="profile",onClick={tab="profile"},label={Text("پروفایل و هویت")},colors=FilterChipDefaults.filterChipColors(containerColor=Soft.card(),labelColor=Soft.inkMuted(),selectedContainerColor=Palette.Navy950,selectedLabelColor=Palette.Brass300))
+  FilterChip(selected=tab=="security",onClick={tab="security"},label={Text("امنیت و رمز عبور")},colors=FilterChipDefaults.filterChipColors(containerColor=Soft.card(),labelColor=Soft.inkMuted(),selectedContainerColor=Palette.Navy950,selectedLabelColor=Palette.Brass300))
+  FilterChip(selected=tab=="billing",onClick={tab="billing"},label={Text("اشتراک و مالی")},colors=FilterChipDefaults.filterChipColors(containerColor=Soft.card(),labelColor=Soft.inkMuted(),selectedContainerColor=Palette.Navy950,selectedLabelColor=Palette.Brass300))
+  FilterChip(selected=tab=="support",onClick={tab="support"},label={Text("پشتیبانی و تیکت")},colors=FilterChipDefaults.filterChipColors(containerColor=Soft.card(),labelColor=Soft.inkMuted(),selectedContainerColor=Palette.Navy950,selectedLabelColor=Palette.Brass300))
   AssistChip(onClick={vm.navigate(Screen.PLANS)},label={Text("طرح‌های اشتراک")})
   AssistChip(onClick={vm.navigate(Screen.TICKETS)},label={Text("تیکت‌های پشتیبانی")})
  }
@@ -718,7 +719,7 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
   }
  };Pager(s,vm)
 } }
-@Composable fun PlansScreen(s:AppUiState,vm:AppViewModel) {Page(onRefresh={vm.refresh()},refreshing=s.loading,hero={SiteHero("طرح مناسب خود را انتخاب کنید","ماهانه یا سالانه؛ مبلغ نهایی را پیش از پرداخت بررسی کنید.","طرح‌های ماهانه و سالانه • قیمت مستقیم از سرور",NativeIcons.Crown,footer={SiteTabs(listOf("monthly" to "طرح‌های ماهانه","yearly" to "طرح‌های سالانه"),s.planCycle,vm::cycle)})}) {
+@Composable fun PlansScreen(s:AppUiState,vm:AppViewModel) {Page(onRefresh={vm.refresh()},refreshing=s.loading,hero={SiteHero("تعرفهٔ شفاف و منصفانه، بدون هزینهٔ پنهان","ماهانه یا سالانه؛ مبلغ نهایی را پیش از پرداخت بررسی کنید. فعال‌سازی خودکار و آنی پس از پرداخت؛ ۷ روز ضمانت بازگشت وجه.","۳ پیام رایگان در ماه • فعال‌سازی آنی • ۷ روز ضمانت بازگشت وجه",NativeIcons.Crown,footer={SiteTabs(listOf("monthly" to "طرح‌های ماهانه","yearly" to "طرح‌های سالانه (۲۰٪ تخفیف ویژه)"),s.planCycle,vm::cycle)})}) {
  // FIX(ui): «تاریخچه پرداخت» یک TextButton لخت بالای کارت‌ها بود و مثل سرتیتر بخش دیده می‌شد.
  // حالا یک سرتیتر واقعی داریم و اقدام‌های پرداخت به‌شکل دو دکمهٔ مشخص زیر آن می‌آیند.
  Text(if(s.planCycle=="yearly")"طرح‌های سالانه"else "طرح‌های ماهانه",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,modifier=Modifier.semantics{heading()})

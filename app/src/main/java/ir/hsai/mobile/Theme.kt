@@ -47,15 +47,15 @@ object Palette {
 }
 
 /**
- * توکن‌های سطح `--soft-*` از src/index.css سایت.
+ * توکن‌های سطح `--soft-*` / `--hs-*` از CSS لایو سایت (لایهٔ ۲۰۲۶).
  * روشن: بوم #f4f2ec، کارت #fbf9f5، کارت۲ #f7f4ee، چاه #efece4
- * تیره: بوم #0b1b28، کارت #12293a، کارت۲ #0f2334، چاه #0a1825
+ * تیره (2026): بوم #07101b، کارت #0b1728، کارت۲ #102138، چاه #060d17
  */
 object Soft {
  val BgLight=Color(0xFFF4F2EC); val CardLight=Color(0xFFFBF9F5); val Card2Light=Color(0xFFF7F4EE)
  val WellLight=Color(0xFFEFECE4); val BorderLight=Color(0xFFE4E0D6); val HairlineLight=Color(0xFFEDEAE2)
- val BgDark=Color(0xFF0B1B28); val CardDark=Color(0xFF12293A); val Card2Dark=Color(0xFF0F2334)
- val WellDark=Color(0xFF0A1825); val BorderDark=Color(0x17FFFFFF); val HairlineDark=Color(0x1AFFFFFF)
+ val BgDark=Color(0xFF07101B); val CardDark=Color(0xFF0B1728); val Card2Dark=Color(0xFF102138)
+ val WellDark=Color(0xFF060D17); val BorderDark=Color(0x17FFFFFF); val HairlineDark=Color(0x1AFFFFFF)
 
  @Composable fun bg()=if(LocalSiteDark.current)BgDark else BgLight
  @Composable fun card()=if(LocalSiteDark.current)CardDark else CardLight
