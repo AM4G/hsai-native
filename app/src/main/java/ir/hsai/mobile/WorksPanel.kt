@@ -67,7 +67,8 @@ private fun WorkBadge(text: String, tone: String) {
     }
     Surface(color = bg, shape = SiteShape.Chip) {
         Text(text, Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-            style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = fg)
+            style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = fg,
+            maxLines = 1, softWrap = false)
     }
 }
 
@@ -110,7 +111,7 @@ private fun CapabilityCard(item: CapabilityItem, onClick: () -> Unit) {
             }
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(item.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Black)
+                    Text(item.title, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Black, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     if (item.badge.isNotBlank()) WorkBadge(item.badge, item.badgeTone)
                 }
                 Text(item.note, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -337,7 +338,7 @@ fun WorksPanel(s: AppUiState, vm: AppViewModel) {
                 OutlinedTextField(
                     value = query, onValueChange = { query = it },
                     modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    placeholder = { Text("جست‌وجوی سریع کارها (دادخواست، ابلاغیه، چک، قرارداد…)", style = MaterialTheme.typography.labelSmall) },
+                    placeholder = { Text("جست‌وجوی سریع کارها (دادخواست، ابلاغیه، چک، قرارداد…)", style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
                     leadingIcon = { Icon(NativeIcons.Search, null, Modifier.size(18.dp)) },
                     shape = SiteShape.Xxl,
                     colors = OutlinedTextFieldDefaults.colors(

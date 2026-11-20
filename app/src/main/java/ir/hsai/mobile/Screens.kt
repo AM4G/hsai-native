@@ -316,7 +316,7 @@ enum class SkeletonKind { LIST, CHAT, CARDS }
   // حالت غیرفعال سطح چاه + جوهر کم‌رنگ‌تر ولی خوانا (کنتراست دارک اصلاح شد).
   val canSend=!s.posting&&(s.draft.isNotBlank()||s.image!=null)
   Button(onClick={vm.sendChat()},enabled=canSend,modifier=Modifier.heightIn(min=46.dp),shape=RoundedCornerShape(14.dp),
-   colors=ButtonDefaults.buttonColors(containerColor=Palette.Brass400,contentColor=Palette.Navy950,disabledContainerColor=Soft.well(),disabledContentColor=Soft.inkMuted()),
+   colors=ButtonDefaults.buttonColors(containerColor=Palette.Brass400,contentColor=Palette.Navy950,disabledContainerColor=Soft.well(),disabledContentColor=if(LocalSiteDark.current)Palette.Slate300 else Soft.inkMuted()),
    border=BorderStroke(1.dp,if(canSend)Palette.Brass500.copy(alpha=.5f) else Soft.border()),
    contentPadding=PaddingValues(horizontal=12.dp,vertical=10.dp)) {
    Icon(NativeIcons.Send,"ارسال پیام",Modifier.size(18.dp))
