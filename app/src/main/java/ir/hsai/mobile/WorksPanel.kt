@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 package ir.hsai.mobile
 
 import androidx.compose.foundation.BorderStroke
